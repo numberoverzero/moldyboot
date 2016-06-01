@@ -1,3 +1,6 @@
 arrow
 bloop
 boto3
+humanize
+pycrypto
+texas
