@@ -1,11 +1,8 @@
 import arrow
-import base64
 
 from bloop import Column, UUID, DateTime, Binary
 from Crypto.PublicKey import pubkey
 from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_PSS
-from Crypto.Hash import SHA256
 from . import engine
 
 
@@ -43,14 +40,6 @@ class Key(engine.model):
         # TODO handle bloop.ConstraintViolation
         with engine.context(atomic=True) as atomic:
             atomic.save(self, condition=not_expired)
-
-    def verify(self, data, signature):
-        """
-        data is the bytes message to compare
-        signature is the base64 signature to verify"""
-        hash = SHA256.new(data)
-        padded = PKCS1_PSS.new(self.public)
-        return padded.verify(hash, base64.b64decode(signature))
 
     @property
     def expired(self):
