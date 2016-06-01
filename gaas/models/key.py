@@ -30,7 +30,7 @@ class Key(engine.model):
         read_units = 1
 
     user_id = Column(UUID, hash_key=True, name='u')
-    fingerprint = Column(UUID, range_key=True, name='f')
+    key_id = Column(UUID, range_key=True, name='k')
     public = Column(PublicKeyType, name='p')
     until = Column(DateTime, name='e')
 
