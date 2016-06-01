@@ -12,7 +12,7 @@ class BadSignature(Exception):
     pass
 
 
-def sign(method, uri, headers, body, headers_to_sign, private_key, key_id):
+def sign(method, uri, headers, body, headers_to_sign, private_key, id):
     """
     Computes the signature, and injects the Authorization header (and some
     missing headers) into the provided headers dict.  You MUST include all
@@ -26,16 +26,15 @@ def sign(method, uri, headers, body, headers_to_sign, private_key, key_id):
     # 3) Raise if any additional headers to sign are missing
     _check_missing_headers(headers, headers_to_sign)
     # 4) Build a signature from the available headers
-    signing_string = _build_signing_string(
-        method, uri, headers, headers_to_sign)
+    signing_string = _build_signing_string(method, uri, headers, headers_to_sign)
     # 5) Sign with private key
     key = PKCS1_PSS.new(private_key)
     hash = SHA256.new(signing_string)
     signature = key.sign(hash)
-    _insert_authorization_header(headers, headers_to_sign, signature, key_id)
+    _insert_authorization_header(headers, headers_to_sign, signature, id)
 
 
-def verify(method, uri, headers, body, headers_to_sign, public_key, signature):
+def verify(method, uri, headers, body, headers_to_sign, public_key, signature, signed_headers):
     """
     Throws BadSignature with detailed info if any part of the signature
     verification fails.
@@ -44,14 +43,13 @@ def verify(method, uri, headers, body, headers_to_sign, public_key, signature):
     method = method.lower()
     # 1) The list of headers to sign must include the minimum signing headers
     _ensure_minimum_headers(headers_to_sign)
-    # 2) Raise if any additional headers to sign are missing
-    _check_missing_headers(headers, headers_to_sign)
+    # 2) Raise if any additional headers to sign are missing, or the signed headers don't include the headers to sign
+    _check_missing_headers(headers, headers_to_sign, signed_headers=signed_headers)
     # 3) Raise if the x-date header is out of bounds, or the body hash is wrong
     _verify_date(headers["x-date"], now)
     _verify_body(headers["x-content-sha256"], body)
     # 4) Build the expected signature from the available headers
-    signing_string = _build_signing_string(
-        method, uri, headers, headers_to_sign)
+    signing_string = _build_signing_string(method, uri, headers, headers_to_sign, signed_headers=signed_headers)
     # 5) Verify the expected signature against the provided signature
     key = PKCS1_PSS.new(public_key)
     hash = SHA256.new(signing_string)
@@ -71,12 +69,15 @@ def _populate_missing_headers(headers, body):
     headers.setdefault("x-content-sha256", _compute_body_hash(body))
 
 
-def _check_missing_headers(headers, headers_to_sign):
+def _check_missing_headers(headers, headers_to_sign, signed_headers=None):
+    signed_headers = signed_headers or headers_to_sign
     for header in headers_to_sign:
         if header == "(request-target)":
             continue
         if header not in headers:
-            raise BadSignature("Missing required header {}".format(header))
+            raise BadSignature("Request was missing required header {}".format(header))
+    if set(signed_headers) < set(headers_to_sign):
+        raise BadSignature("Signature did not include all required headers ({})".format(" ".join(headers_to_sign)))
 
 
 def _compute_body_hash(body):
@@ -85,10 +86,13 @@ def _compute_body_hash(body):
     return base64.b64encode(hash.digest()).decode("utf-8")
 
 
-def _build_signing_string(method, uri, headers, headers_to_sign):
+def _build_signing_string(method, uri, headers, headers_to_sign, signed_headers=None):
+    # When signed_headers are passed, that ordering is used (verify)
+    # Otherwise, the headers to sign are used for ordering (sign)
+    signed_headers = signed_headers or headers_to_sign
     pieces = []
     line_format = "{}: {}"
-    for header_name in headers_to_sign:
+    for header_name in signed_headers:
         if header_name == "(request-target)":
             value = _build_request_target(method, uri)
         else:
@@ -105,11 +109,10 @@ def _build_request_target(method, uri):
     return "{} {}".format(method, target)
 
 
-def _insert_authorization_header(headers, headers_to_sign, signature, key_id):
+def _insert_authorization_header(headers, headers_to_sign, signature, id):
     signature = base64.b64encode(signature).decode("utf-8")
-    auth_format = "Signature headers=\"{}\" keyId=\"{}\" signature=\"{}\""
-    headers["authorization"] = auth_format.format(
-        " ".join(headers_to_sign), key_id, signature)
+    auth_format = "Signature headers=\"{}\" id=\"{}\" signature=\"{}\""
+    headers["authorization"] = auth_format.format(" ".join(headers_to_sign), id, signature)
 
 
 def _verify_date(iso8601_date, now):
@@ -127,5 +130,4 @@ def _verify_body(body_hash, body):
     actual_body_hash = _compute_body_hash(body)
     if body_hash != actual_body_hash:
         raise BadSignature(
-            "x-content-sha256 mismatch (computed {} but header was {})".format(
-                body_hash, actual_body_hash))
+            "x-content-sha256 mismatch (computed {} but header was {})".format(body_hash, actual_body_hash))

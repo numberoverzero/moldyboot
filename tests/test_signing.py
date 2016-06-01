@@ -8,6 +8,17 @@ from gaas.signing import sign, verify, BadSignature
 
 URI = uritools.urisplit(
     "https://host.com/some/path/?query=string&another=value")
+SIGNATURE_PATTERN = re.compile(
+    """^Signature\sheaders="(?P<headers>[^"]*)"\sid="(?P<id>[^"]*)"\ssignature="(?P<signature>[^"]*)"$""")
+MINIMUM_SIGNED_HEADERS = ["x-date", "(request-target)", "content-length", "x-content-sha256"]
+
+
+def extract_signed_headers(authorization):
+    return SIGNATURE_PATTERN.match(authorization).groupdict()["headers"].split(" ")
+
+
+def extract_signature(authorization):
+    return SIGNATURE_PATTERN.match(authorization).groupdict()["signature"]
 
 
 def sha256(body):
@@ -70,10 +81,24 @@ def test_verify_fails_missing_header(crypto_pub):
     headers_to_sign = []
     signature = sha256(body)
     with pytest.raises(BadSignature) as excinfo:
-        verify(
-            method, URI, headers, body,
-            headers_to_sign, crypto_pub, signature)
-    assert "Missing required header" in str(excinfo.value)
+        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+    assert "Request was missing required header" in str(excinfo.value)
+
+
+def test_verify_fails_missing_signed_header(crypto_pub):
+    method = "get"
+    headers = {
+        "content-length": "0",
+        "x-content-sha256": sha256(""),
+        "x-date": arrow.now().to("utc").isoformat()}
+    body = None
+    headers_to_sign = []
+    # Pretend the generated signature forgot to sign the last header
+    signed_headers = MINIMUM_SIGNED_HEADERS[:-1]
+    signature = sha256(body)
+    with pytest.raises(BadSignature) as excinfo:
+        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
+    assert "Signature did not include all required headers" in str(excinfo.value)
 
 
 def test_verify_fails_expired_date(crypto_pub):
@@ -86,9 +111,7 @@ def test_verify_fails_expired_date(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(
-            method, URI, headers, body,
-            headers_to_sign, crypto_pub, signature)
+        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     assert "x-date not within 5 minutes of current time" in str(excinfo.value)
 
 
@@ -102,9 +125,7 @@ def test_verify_fails_invalid_date(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(
-            method, URI, headers, body,
-            headers_to_sign, crypto_pub, signature)
+        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     assert "x-date must be ISO8601 UTC" in str(excinfo.value)
 
 
@@ -118,9 +139,7 @@ def test_verify_fails_wrong_body_sha(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(
-            method, URI, headers, body,
-            headers_to_sign, crypto_pub, signature)
+        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     message = str(excinfo.value)
     assert "x-content-sha256 mismatch" in message
     assert sha256("") in message
@@ -137,9 +156,7 @@ def test_verify_fails_bad_signature(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(
-            method, URI, headers, body,
-            headers_to_sign, crypto_pub, signature)
+        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     assert "Signatures do not match." in str(excinfo.value)
 
 
@@ -156,12 +173,7 @@ def test_sign_and_verify(crypto_priv, crypto_pub):
 
     sign(method, uri, headers, body, headers_to_sign, crypto_priv, key_id)
 
-    signature = re.search(
-        'signature="(?P<signature>[^"]+)"',
-        headers["authorization"]).groupdict()["signature"]
-    signed_headers = re.search(
-        'headers="(?P<headers>[^"]+)"',
-        headers["authorization"]).groupdict()["headers"]
-    signed_headers = signed_headers.split(" ")
+    signature = extract_signature(headers["authorization"])
+    signed_headers = extract_signed_headers(headers["authorization"])
 
-    verify(method, uri, headers, body, signed_headers, crypto_pub, signature)
+    verify(method, uri, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
