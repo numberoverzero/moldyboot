@@ -1,6 +1,7 @@
 arrow
 bloop
 boto3
+falcon
 humanize
 pycrypto
 pytest
