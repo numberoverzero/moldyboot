@@ -22,7 +22,7 @@ def valid_request(crypto_priv):
     body = "hello world"
     headers = {
         "x-date": arrow.now().to("utc").isoformat(),
-        "content-length": 0,
+        "content-length": str(len(body)),
         "x-content-sha256": sha256(body)
     }
     user_id, key_id = uuid.uuid4(), uuid.uuid4()
@@ -157,7 +157,7 @@ def test_authenticate_success(crypto_pub, valid_request, mock_engine):
     mock_engine.load = mock_load
 
     def mock_save(item, condition=None, atomic=None):
-        # The new expiration is ~1 hour from now, accounting for run time
+        # The new expiration should be ~1 hour from now
         assert one_hour.replace(seconds=-10) <= item.until <= one_hour.replace(seconds=10)
     mock_engine.save = mock_save
 

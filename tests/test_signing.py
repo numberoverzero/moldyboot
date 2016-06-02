@@ -53,7 +53,7 @@ def test_sign_populates_missing_headers(crypto_priv):
     assert "authorization" in headers
 
 
-def test_sign_uses_provided_invalid_sha256(crypto_priv):
+def test_sign_uses_provided_invalid_headers(crypto_priv):
     # sign doesn't replace provided headers, even if they're invalid
     method = "get"
     headers = {
@@ -130,7 +130,7 @@ def test_verify_fails_invalid_date(crypto_pub):
 def test_verify_fails_wrong_body_sha(crypto_pub):
     method = "get"
     headers = {
-        "content-length": "0",
+        "content-length": "9",
         "x-content-sha256": sha256(""),
         "x-date": arrow.now().to("utc").isoformat()}
     body = "not empty"
@@ -142,6 +142,37 @@ def test_verify_fails_wrong_body_sha(crypto_pub):
     assert "x-content-sha256 mismatch" in message
     assert sha256("") in message
     assert sha256(body) in message
+
+
+def test_verify_fails_wrong_body_length(crypto_pub):
+    method = "get"
+    headers = {
+        "content-length": "2",
+        "x-content-sha256": sha256("not empty"),
+        "x-date": arrow.now().to("utc").isoformat()}
+    body = "not empty"
+    headers_to_sign = []
+    signature = sha256("")
+    with pytest.raises(BadSignature) as excinfo:
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+    message = str(excinfo.value)
+    assert "content-length mismatch" in message
+    assert "2" in message
+    assert "9" in message
+
+
+def test_verify_fails_invalid_body_length(crypto_pub):
+    method = "get"
+    headers = {
+        "content-length": "not an int",
+        "x-content-sha256": sha256("not empty"),
+        "x-date": arrow.now().to("utc").isoformat()}
+    body = "not empty"
+    headers_to_sign = []
+    signature = sha256("")
+    with pytest.raises(BadSignature) as excinfo:
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+    assert "content-length must be an integer" == str(excinfo.value)
 
 
 def test_verify_fails_bad_signature(crypto_pub):

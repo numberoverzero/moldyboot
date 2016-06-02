@@ -66,8 +66,8 @@ def verify(
     # 2) Raise if any additional headers to sign are missing, or the signed headers don't include the headers to sign
     _check_missing_headers(headers, headers_to_sign, signed_headers=signed_headers)
     # 3) Raise if the x-date header is out of bounds, or the body hash is wrong
-    _verify_date(headers["x-date"], now)
-    _verify_body(headers["x-content-sha256"], body)
+    _verify_date(headers, now)
+    _verify_body(headers, body)
     # 4) Build the expected signature from the available headers
     signing_string = _build_signing_string(method, path, headers, headers_to_sign, signed_headers=signed_headers)
     # 5) Verify the expected signature against the provided signature
@@ -136,7 +136,8 @@ def _insert_authorization_header(headers, headers_to_sign, signature, id):
     headers["authorization"] = auth_format.format(" ".join(headers_to_sign), id, signature)
 
 
-def _verify_date(iso8601_date, now):
+def _verify_date(headers, now):
+    iso8601_date = headers["x-date"]
     try:
         date = arrow.get(iso8601_date)
     except arrow.parser.ParserError:
@@ -147,8 +148,22 @@ def _verify_date(iso8601_date, now):
         raise BadSignature("x-date not within 5 minutes of current time")
 
 
-def _verify_body(body_hash, body):
+def _verify_body(headers, body):
+    body = body or ""
+    header_x_content_sha256 = headers["x-content-sha256"]
+    header_content_length = headers["content-length"] or "0"
+    try:
+        header_content_length = int(header_content_length)
+    except ValueError:
+        raise BadSignature("content-length must be an integer")
+
+    actual_body_length = len(body)
     actual_body_hash = _compute_body_hash(body)
-    if body_hash != actual_body_hash:
+    if actual_body_length != header_content_length:
         raise BadSignature(
-            "x-content-sha256 mismatch (computed {} but header was {})".format(body_hash, actual_body_hash))
+            "content-length mismatch (length is {} but header was {})".format(
+                actual_body_length, header_content_length))
+    if actual_body_hash != header_x_content_sha256:
+        raise BadSignature(
+            "x-content-sha256 mismatch (computed {} but header was {})".format(
+                actual_body_hash, header_x_content_sha256))
