@@ -19,7 +19,7 @@ class BadSignature(Exception):
 
 
 def sign(method: str,
-         uri: uritools.SplitResult,
+         path: str,
          headers: Dict,
          body: Optional[str],
          headers_to_sign: Sequence[str],
@@ -38,7 +38,7 @@ def sign(method: str,
     # 3) Raise if any additional headers to sign are missing
     _check_missing_headers(headers, headers_to_sign)
     # 4) Build a signature from the available headers
-    signing_string = _build_signing_string(method, uri, headers, headers_to_sign)
+    signing_string = _build_signing_string(method, path, headers, headers_to_sign)
     # 5) Sign with private key
     key = PKCS1_PSS.new(private_key)
     hash = SHA256.new(signing_string)
@@ -48,7 +48,7 @@ def sign(method: str,
 
 def verify(
         method: str,
-        uri: uritools.SplitResult,
+        path: str,
         headers: Dict,
         body: Optional[str],
         headers_to_sign: Sequence[str],
@@ -69,7 +69,7 @@ def verify(
     _verify_date(headers["x-date"], now)
     _verify_body(headers["x-content-sha256"], body)
     # 4) Build the expected signature from the available headers
-    signing_string = _build_signing_string(method, uri, headers, headers_to_sign, signed_headers=signed_headers)
+    signing_string = _build_signing_string(method, path, headers, headers_to_sign, signed_headers=signed_headers)
     # 5) Verify the expected signature against the provided signature
     key = PKCS1_PSS.new(public_key)
     hash = SHA256.new(signing_string)
@@ -106,7 +106,7 @@ def _compute_body_hash(body):
     return base64.b64encode(hash.digest()).decode("utf-8")
 
 
-def _build_signing_string(method, uri, headers, headers_to_sign, signed_headers=None):
+def _build_signing_string(method, path, headers, headers_to_sign, signed_headers=None):
     # When signed_headers are passed, that ordering is used (verify)
     # Otherwise, the headers to sign are used for ordering (sign)
     signed_headers = signed_headers or headers_to_sign
@@ -114,18 +114,19 @@ def _build_signing_string(method, uri, headers, headers_to_sign, signed_headers=
     line_format = "{}: {}"
     for header_name in signed_headers:
         if header_name == "(request-target)":
-            value = _build_request_target(method, uri)
+            value = _build_request_target(method, path)
         else:
             value = headers[header_name]
         pieces.append(line_format.format(header_name, value))
     return "\n".join(pieces).encode("utf-8")
 
 
-def _build_request_target(method, uri):
-    if uri.query:
-        target = uri.path + "?" + uri.query
+def _build_request_target(method, path):
+    parts = uritools.urisplit(path)
+    if parts.query:
+        target = parts.path + "?" + parts.query
     else:
-        target = uri.path
+        target = parts.path
     return "{} {}".format(method, target)
 
 

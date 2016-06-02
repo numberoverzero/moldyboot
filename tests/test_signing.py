@@ -2,23 +2,21 @@ import arrow
 import base64
 import pytest
 import re
-import uritools
 from Crypto.Hash import SHA256
 from gaas.signing import sign, verify, BadSignature
 
-URI = uritools.urisplit(
-    "https://host.com/some/path/?query=string&another=value")
+PATH = "/some/path/?query=string&another=value"
 SIGNATURE_PATTERN = re.compile(
-    """^Signature\sheaders="(?P<headers>[^"]*)"\sid="(?P<id>[^"]*)"\ssignature="(?P<signature>[^"]*)"$""")
+    """^Signature headers="(?P<headers>[^"]*)" id="(?P<id>[^"]*)" signature="(?P<signature>[^"]*)"$""")
 MINIMUM_SIGNED_HEADERS = ["x-date", "(request-target)", "content-length", "x-content-sha256"]
 
 
-def extract_signed_headers(authorization):
-    return SIGNATURE_PATTERN.match(authorization).groupdict()["headers"].split(" ")
+def extract_signed_headers(string):
+    return SIGNATURE_PATTERN.match(string).groupdict()["headers"].split(" ")
 
 
-def extract_signature(authorization):
-    return SIGNATURE_PATTERN.match(authorization).groupdict()["signature"]
+def extract_signature(string):
+    return SIGNATURE_PATTERN.match(string).groupdict()["signature"]
 
 
 def sha256(body):
@@ -34,7 +32,7 @@ def test_sign_fails_missing_header(crypto_priv):
     headers_to_sign = ["missing-header"]
     key_id = "user:some-key-id"
     with pytest.raises(BadSignature):
-        sign(method, URI, headers, body, headers_to_sign, crypto_priv, key_id)
+        sign(method, PATH, headers, body, headers_to_sign, crypto_priv, key_id)
 
 
 def test_sign_populates_missing_headers(crypto_priv):
@@ -43,7 +41,7 @@ def test_sign_populates_missing_headers(crypto_priv):
     body = None
     headers_to_sign = []
     key_id = "user:some-key-id"
-    sign(method, URI, headers, body, headers_to_sign, crypto_priv, key_id)
+    sign(method, PATH, headers, body, headers_to_sign, crypto_priv, key_id)
 
     assert headers["x-content-sha256"] == sha256(body)
     assert headers["content-length"] == "0"
@@ -66,7 +64,7 @@ def test_sign_uses_provided_invalid_sha256(crypto_priv):
     body = "hello"
     headers_to_sign = []
     key_id = "user:some-key-id"
-    sign(method, URI, headers, body, headers_to_sign, crypto_priv, key_id)
+    sign(method, PATH, headers, body, headers_to_sign, crypto_priv, key_id)
     assert headers["content-length"] == "not a length"
     assert headers["x-content-sha256"] == "not a b64 sha256"
     assert headers["x-date"] == "not an ISO8601 UTC date"
@@ -81,7 +79,7 @@ def test_verify_fails_missing_header(crypto_pub):
     headers_to_sign = []
     signature = sha256(body)
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     assert "Request was missing required header" in str(excinfo.value)
 
 
@@ -97,7 +95,7 @@ def test_verify_fails_missing_signed_header(crypto_pub):
     signed_headers = MINIMUM_SIGNED_HEADERS[:-1]
     signature = sha256(body)
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
     assert "Signature did not include all required headers" in str(excinfo.value)
 
 
@@ -111,7 +109,7 @@ def test_verify_fails_expired_date(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     assert "x-date not within 5 minutes of current time" in str(excinfo.value)
 
 
@@ -125,7 +123,7 @@ def test_verify_fails_invalid_date(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     assert "x-date must be ISO8601 UTC" in str(excinfo.value)
 
 
@@ -139,7 +137,7 @@ def test_verify_fails_wrong_body_sha(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     message = str(excinfo.value)
     assert "x-content-sha256 mismatch" in message
     assert sha256("") in message
@@ -156,13 +154,13 @@ def test_verify_fails_bad_signature(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, URI, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
     assert "Signatures do not match." in str(excinfo.value)
 
 
 def test_sign_and_verify(crypto_priv, crypto_pub):
     method = "get"
-    uri = uritools.urisplit("https://host.com/path/segment")
+    path = "/path/segment"
     headers = {
         "content-length": "0",
         "x-content-sha256": sha256(""),
@@ -171,9 +169,9 @@ def test_sign_and_verify(crypto_priv, crypto_pub):
     headers_to_sign = []
     key_id = "user:key-id"
 
-    sign(method, uri, headers, body, headers_to_sign, crypto_priv, key_id)
+    sign(method, path, headers, body, headers_to_sign, crypto_priv, key_id)
 
     signature = extract_signature(headers["authorization"])
     signed_headers = extract_signed_headers(headers["authorization"])
 
-    verify(method, uri, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
+    verify(method, path, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
