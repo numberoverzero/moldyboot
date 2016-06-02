@@ -1,20 +1,19 @@
 import arrow
 import uuid
 from bloop import Column, UUID, DateTime, Binary, NotModified
-from Crypto.PublicKey import pubkey
 from Crypto.PublicKey import RSA
 from . import engine, NotFound
 
 
 class PublicKeyType(Binary):
     """Stored in Dynamo in DER.  Locally, an RSA._RSAobj"""
-    python_type = pubkey.pubkey
+    python_type = RSA._RSAobj
 
     def dynamo_load(self, value: str, *, context=None, **kwargs):
         value = super().dynamo_load(value, context=context, **kwargs)
         return RSA.importKey(value)
 
-    def dynamo_dump(self, value: pubkey.pubkey, *, context=None, **kwargs):
+    def dynamo_dump(self, value: RSA._RSAobj, *, context=None, **kwargs):
         value = value.exportKey(format="DER")
         return super().dynamo_dump(value, context=context, **kwargs)
 

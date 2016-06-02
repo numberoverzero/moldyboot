@@ -1,7 +1,13 @@
 import arrow
 import base64
+import uritools
+from typing import Sequence, Dict, Optional
+from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA256
+
+__all__ = ["sign", "verify"]
+
 # These must be signed on every request
 _MINIMUM_HEADERS = [
     "x-date", "(request-target)",
@@ -12,7 +18,13 @@ class BadSignature(Exception):
     pass
 
 
-def sign(method, uri, headers, body, headers_to_sign, private_key, id):
+def sign(method: str,
+         uri: uritools.SplitResult,
+         headers: Dict,
+         body: Optional[str],
+         headers_to_sign: Sequence[str],
+         private_key: RSA._RSAobj,
+         id: str):
     """
     Computes the signature, and injects the Authorization header (and some
     missing headers) into the provided headers dict.  You MUST include all
@@ -34,7 +46,15 @@ def sign(method, uri, headers, body, headers_to_sign, private_key, id):
     _insert_authorization_header(headers, headers_to_sign, signature, id)
 
 
-def verify(method, uri, headers, body, headers_to_sign, public_key, signature, signed_headers):
+def verify(
+        method: str,
+        uri: uritools.SplitResult,
+        headers: Dict,
+        body: Optional[str],
+        headers_to_sign: Sequence[str],
+        public_key: RSA._RSAobj,
+        signature: str,
+        signed_headers: Sequence[str]):
     """
     Throws BadSignature with detailed info if any part of the signature
     verification fails.
