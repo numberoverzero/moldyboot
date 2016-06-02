@@ -44,7 +44,7 @@ class MockEngine(bloop.Engine):
         return False
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def generate_key():
     """Returns a function for generating keys"""
     def _generate_key(bits=1024):
@@ -54,17 +54,17 @@ def generate_key():
     return _generate_key
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def crypto_pair(generate_key):
     return generate_key()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def crypto_priv(crypto_pair):
     return crypto_pair[0]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def crypto_pub(crypto_pair):
     return crypto_pair[1]
 
