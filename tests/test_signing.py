@@ -29,7 +29,7 @@ def test_sign_fails_missing_header(crypto_priv):
     method = "get"
     headers = {}
     body = None
-    headers_to_sign = ["missing-header"]
+    headers_to_sign = ["missing-header", "x-date", "(request-target)", "x-content-sha256", "content-length"]
     key_id = "user:some-key-id"
     with pytest.raises(BadSignature):
         sign(method, PATH, headers, body, crypto_priv, key_id, headers_to_sign)
