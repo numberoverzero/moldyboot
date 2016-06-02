@@ -32,7 +32,7 @@ def test_sign_fails_missing_header(crypto_priv):
     headers_to_sign = ["missing-header"]
     key_id = "user:some-key-id"
     with pytest.raises(BadSignature):
-        sign(method, PATH, headers, body, headers_to_sign, crypto_priv, key_id)
+        sign(method, PATH, headers, body, crypto_priv, key_id, headers_to_sign)
 
 
 def test_sign_populates_missing_headers(crypto_priv):
@@ -41,7 +41,7 @@ def test_sign_populates_missing_headers(crypto_priv):
     body = None
     headers_to_sign = []
     key_id = "user:some-key-id"
-    sign(method, PATH, headers, body, headers_to_sign, crypto_priv, key_id)
+    sign(method, PATH, headers, body, crypto_priv, key_id, headers_to_sign)
 
     assert headers["x-content-sha256"] == sha256(body)
     assert headers["content-length"] == "0"
@@ -64,7 +64,7 @@ def test_sign_uses_provided_invalid_headers(crypto_priv):
     body = "hello"
     headers_to_sign = []
     key_id = "user:some-key-id"
-    sign(method, PATH, headers, body, headers_to_sign, crypto_priv, key_id)
+    sign(method, PATH, headers, body, crypto_priv, key_id, headers_to_sign)
     assert headers["content-length"] == "not a length"
     assert headers["x-content-sha256"] == "not a b64 sha256"
     assert headers["x-date"] == "not an ISO8601 UTC date"
@@ -79,7 +79,7 @@ def test_verify_fails_missing_header(crypto_pub):
     headers_to_sign = []
     signature = sha256(body)
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, crypto_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
     assert "Request was missing required header" in str(excinfo.value)
 
 
@@ -95,7 +95,7 @@ def test_verify_fails_missing_signed_header(crypto_pub):
     signed_headers = MINIMUM_SIGNED_HEADERS[:-1]
     signature = sha256(body)
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
+        verify(method, PATH, headers, body, crypto_pub, signature, signed_headers, headers_to_sign)
     assert "Signature did not include all required headers" in str(excinfo.value)
 
 
@@ -109,7 +109,7 @@ def test_verify_fails_expired_date(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, crypto_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
     assert "x-date not within 5 minutes of current time" in str(excinfo.value)
 
 
@@ -123,7 +123,7 @@ def test_verify_fails_invalid_date(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, crypto_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
     assert "x-date must be ISO8601 UTC" in str(excinfo.value)
 
 
@@ -137,7 +137,7 @@ def test_verify_fails_wrong_body_sha(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, crypto_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
     message = str(excinfo.value)
     assert "x-content-sha256 mismatch" in message
     assert sha256("") in message
@@ -154,7 +154,7 @@ def test_verify_fails_wrong_body_length(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, crypto_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
     message = str(excinfo.value)
     assert "content-length mismatch" in message
     assert "2" in message
@@ -171,7 +171,7 @@ def test_verify_fails_invalid_body_length(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, crypto_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
     assert "content-length must be an integer" == str(excinfo.value)
 
 
@@ -185,7 +185,7 @@ def test_verify_fails_bad_signature(crypto_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, headers_to_sign, crypto_pub, signature, MINIMUM_SIGNED_HEADERS)
+        verify(method, PATH, headers, body, crypto_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
     assert "Signatures do not match." in str(excinfo.value)
 
 
@@ -200,9 +200,9 @@ def test_sign_and_verify(crypto_priv, crypto_pub):
     headers_to_sign = []
     key_id = "user:key-id"
 
-    sign(method, path, headers, body, headers_to_sign, crypto_priv, key_id)
+    sign(method, path, headers, body, crypto_priv, key_id, headers_to_sign)
 
     signature = extract_signature(headers["authorization"])
     signed_headers = extract_signed_headers(headers["authorization"])
 
-    verify(method, path, headers, body, headers_to_sign, crypto_pub, signature, signed_headers)
+    verify(method, path, headers, body, crypto_pub, signature, signed_headers, headers_to_sign)

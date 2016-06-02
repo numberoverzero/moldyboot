@@ -22,15 +22,16 @@ def sign(method: str,
          path: str,
          headers: Dict,
          body: Optional[str],
-         headers_to_sign: Sequence[str],
          private_key: RSA._RSAobj,
-         id: str):
+         id: str,
+         headers_to_sign: Optional[Sequence[str]]=None):
     """
     Computes the signature, and injects the Authorization header (and some
     missing headers) into the provided headers dict.  You MUST include all
     headers in this dictionary in the signed request.
     """
     method = method.lower()
+    headers_to_sign = headers_to_sign or []
     # 1) The list of headers to sign must include the minimum signing headers
     _ensure_minimum_headers(headers_to_sign)
     # 2) The minimum headers can always be populated automatically
@@ -51,16 +52,17 @@ def verify(
         path: str,
         headers: Dict,
         body: Optional[str],
-        headers_to_sign: Sequence[str],
         public_key: RSA._RSAobj,
         signature: str,
-        signed_headers: Sequence[str]):
+        signed_headers: Sequence[str],
+        headers_to_sign: Optional[Sequence[str]]=None):
     """
     Throws BadSignature with detailed info if any part of the signature
     verification fails.
     """
     now = arrow.now()
     method = method.lower()
+    headers_to_sign = headers_to_sign or []
     # 1) The list of headers to sign must include the minimum signing headers
     _ensure_minimum_headers(headers_to_sign)
     # 2) Raise if any additional headers to sign are missing, or the signed headers don't include the headers to sign

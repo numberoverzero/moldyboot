@@ -27,7 +27,7 @@ def valid_request(crypto_priv):
     }
     user_id, key_id = uuid.uuid4(), uuid.uuid4()
     id = "{}@{}".format(user_id, key_id)
-    sign(method, path, headers, body, [], crypto_priv, id)
+    sign(method, path, headers, body, crypto_priv, id)
     return method, path, body, headers, user_id, key_id
 
 
@@ -58,7 +58,7 @@ def test_authenticate_invalid_id_format(crypto_priv):
         "x-content-sha256": sha256(body)
     }
     key_id = "wrong-separator"
-    sign(method, path, headers, body, [], crypto_priv, key_id)
+    sign(method, path, headers, body, crypto_priv, key_id)
 
     with pytest.raises(Unauthorized) as excinfo:
         authenticate(method, path, headers, body, [])
@@ -75,7 +75,7 @@ def test_authenticate_invalid_user_id(crypto_priv):
         "x-content-sha256": sha256(body)
     }
     key_id = "bad-format@{}".format(uuid.uuid4())
-    sign(method, path, headers, body, [], crypto_priv, key_id)
+    sign(method, path, headers, body, crypto_priv, key_id)
 
     with pytest.raises(Unauthorized) as excinfo:
         authenticate(method, path, headers, body, [])
@@ -92,7 +92,7 @@ def test_authenticate_invalid_key_id(crypto_priv):
         "x-content-sha256": sha256(body)
     }
     key_id = "{}@bad-format".format(uuid.uuid4())
-    sign(method, path, headers, body, [], crypto_priv, key_id)
+    sign(method, path, headers, body, crypto_priv, key_id)
 
     with pytest.raises(Unauthorized) as excinfo:
         authenticate(method, path, headers, body, [])
@@ -161,4 +161,5 @@ def test_authenticate_success(crypto_pub, valid_request, mock_engine):
         assert one_hour.replace(seconds=-10) <= item.until <= one_hour.replace(seconds=10)
     mock_engine.save = mock_save
 
-    authenticate(method, path, headers, body, [])
+    authenticated_user_id = authenticate(method, path, headers, body, [])
+    assert authenticated_user_id == user_id

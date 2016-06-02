@@ -66,11 +66,15 @@ def authenticate(
     # 4) Check signature
     try:
         verify(
-            method, path, headers, body, headers_to_sign,
+            method, path, headers, body,
             key.public, authentication["signature"],
-            authentication["headers"].split(" "))
+            authentication["headers"].split(" "),
+            headers_to_sign)
     except BadSignature as exception:
         raise Unauthorized("Signature validation failed: {}".format(exception.args[0]))
 
     # Success!
     key.refresh()
+
+    # Let callers know who was just authenticated
+    return user_id
