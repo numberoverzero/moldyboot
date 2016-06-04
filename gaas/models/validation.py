@@ -50,6 +50,8 @@ def validate(parameter_name, value):
 
 
 def validate_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return Result.of(value)
     try:
         return Result.of(uuid.UUID(value))
     except (ValueError, TypeError, AttributeError):

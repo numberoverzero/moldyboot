@@ -1,4 +1,3 @@
-import bloop
 import gaas.models
 import gaas.models.key
 import gaas.middleware
@@ -6,43 +5,32 @@ import pytest
 from Crypto.PublicKey import RSA
 
 
-class MockEngine(bloop.Engine):
-    # Lack of client is intentional - there should be no downstream calls
-    def __init__(self, real_engine: bloop.Engine):
-        self.real_engine = real_engine
-        self.temp_config = []
-        # Don't call super().__init__ since we don't want to set up a real client
+class MockEngine:
+    def __init__(self):
+        self.captured_load_args = []
+        self.captured_save_args = []
+        self.captured_delete_args = []
 
-    @property
-    def type_engine(self):
-        return self.real_engine.type_engine
+    def on_load(self, item, *args, **kwargs):
+        pass
 
-    @property
-    def model(self):
-        return self.real_engine.model
+    def load(self, item, *args, **kwargs):
+        self.captured_load_args.append([item, args, kwargs])
+        self.on_load(item, *args, **kwargs)
 
-    @property
-    def unbound_models(self):
-        return self.real_engine.unbound_models
+    def on_save(self, item, *args, **kwargs):
+        pass
 
-    @property
-    def models(self):
-        return self.real_engine.models
+    def save(self, item, *args, **kwargs):
+        self.captured_save_args.append([item, args, kwargs])
+        self.on_save(item, *args, **kwargs)
 
-    @property
-    def config(self):
-        return self.real_engine.config
+    def on_delete(self, item, *args, **kwargs):
+        pass
 
-    def context(self, **config):
-        self.temp_config.append(config)
-        return self
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        self.temp_config.pop()
-        return False
+    def delete(self, item, *args, **kwargs):
+        self.captured_delete_args.append([item, args, kwargs])
+        self.on_delete(item, *args, **kwargs)
 
 
 class MockKeyManager:
@@ -90,20 +78,9 @@ def crypto_pub(crypto_pair):
     return crypto_pair[1]
 
 
-@pytest.yield_fixture
-def mock_engine():
-    mock_engine = MockEngine(gaas.models.engine)
-    real_engine = gaas.models.engine
-
-    # Replace references where engine is already imported
-    gaas.models.engine = mock_engine
-    gaas.models.key.engine = mock_engine
-
-    yield mock_engine
-
-    # Undo patch
-    gaas.models.engine = real_engine
-    gaas.models.key.engine = real_engine
+@pytest.fixture
+def engine():
+    return MockEngine()
 
 
 @pytest.fixture

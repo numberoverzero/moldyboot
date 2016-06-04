@@ -1,8 +1,10 @@
 import arrow
-import uuid
-from bloop import Column, UUID, DateTime, Binary, NotModified
+import bloop
+from bloop import Column, UUID, DateTime, Binary
 from Crypto.PublicKey import RSA
-from . import engine, NotFound
+
+from . import BaseModel, NotFound
+from .validation import validate
 
 
 class PublicKeyType(Binary):
@@ -18,7 +20,7 @@ class PublicKeyType(Binary):
         return super().dynamo_dump(value, context=context, **kwargs)
 
 
-class Key(engine.model):
+class Key(BaseModel):
     class Meta:
         # TODO should be loaded from config
         table_name = "gaas-keys"
@@ -30,31 +32,43 @@ class Key(engine.model):
     public = Column(PublicKeyType, name='p')
     until = Column(DateTime, name='e')
 
-    @classmethod
-    def load(cls, user_id: uuid.UUID, key_id: uuid.UUID):
-        key = cls(user_id=user_id, key_id=key_id)
+    @property
+    def expired(self):
+        return arrow.now() > self.until
+
+
+class KeyManager:
+    def __init__(self, engine: bloop.Engine):
+        self.engine = engine
+
+    def load(self, user_id, key_id):
+        user_id = validate("user_id", user_id)
+        key_id = validate("key_id", key_id)
+
+        key = Key(user_id=user_id, key_id=key_id)
         try:
-            engine.load(key, consistent=True)
-        except NotModified:
+            self.engine.load(key, consistent=True)
+        except bloop.NotModified:
             raise NotFound
-        return key
+        if key.expired:
+            self._revoke(key)
+            raise NotFound
+        else:
+            self._refresh(key)
+            return key
 
-    def refresh(self):
-        # TODO should push to an async task queue, not blocking
-        now = arrow.now()
-        # TODO offset should be loaded from config
-        self.until = now.replace(hours=1)
-        not_expired = Key.until >= now
-        # TODO handle bloop.ConstraintViolation
-        engine.save(self, condition=not_expired, atomic=True)
-
-    def revoke(self):
+    def _revoke(self, key):
         # TODO should push to an async task queue, not blocking
         # TODO handle bloop.ConstraintViolation
         # Atomic because it's possible someone refreshed the key just after a load, and this revoke
         # shouldn't apply. Only revoke keys that meet whatever criteria tried to clean them up initially.
-        engine.delete(self, atomic=True)
+        self.engine.delete(key, atomic=True)
 
-    @property
-    def expired(self):
-        return arrow.now() > self.until
+    def _refresh(self, key):
+        # TODO should push to an async task queue, not blocking
+        # TODO offset should be loaded from config
+        # TODO handle bloop.ConstraintViolation
+        now = arrow.now()
+        key.until = now.replace(hours=1)
+        not_expired = Key.until >= now
+        self.engine.save(key, condition=not_expired, atomic=True)

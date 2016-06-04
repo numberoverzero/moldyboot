@@ -1,5 +1,5 @@
 from gaas.models import NotFound
-from gaas.models.key import Key, PublicKeyType
+from gaas.models.key import PublicKeyType, Key, KeyManager
 
 import arrow
 import base64
@@ -29,76 +29,78 @@ def test_expired():
     assert not key.expired
 
 
-def test_refresh(crypto_pub, mock_engine):
+def test_load_valid(crypto_pub, engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
-    key = Key(user_id=user_id, key_id=key_id, public=crypto_pub)
+    key_manager = KeyManager(engine)
 
-    called_save = 0
+    def on_load(item, *args, **kwargs):
+        item.until = arrow.now().replace(seconds=5)
+    engine.on_load = on_load
 
-    def mock_save(item, *, condition=None, atomic=None):
-        nonlocal called_save
-        called_save += 1
+    key = key_manager.load(user_id, key_id)
 
-        # Saving the key that's being refreshed
-        assert item is key
-        # Condition should be against key.until against a very recent date (~now)
-        assert condition.column is Key.until
-        now = arrow.now()
-        assert now.replace(seconds=-1) <= condition.value <= now.replace(seconds=1)
-        # As a mutating operation against a public key, refresh should always be atomic
-        assert atomic is True
-    mock_engine.save = mock_save
+    # Verify load from dynamodb
+    assert len(engine.captured_load_args) == 1
+    item, _, kwargs = engine.captured_load_args[0]
+    assert item is key
+    assert kwargs["consistent"] is True
 
-    key.refresh()
-    assert called_save == 1
+    # Verify conditional save (refresh) to dynamodb
+    assert len(engine.captured_save_args) == 1
+    item, args, kwargs = engine.captured_save_args[0]
+    assert item is key
+    condition = kwargs["condition"]
+    # Condition should be against key.until against a very recent date (~now)
+    assert condition.column is Key.until
+    now = arrow.now()
+    assert now.replace(seconds=-1) <= condition.value <= now.replace(seconds=1)
+    # As a mutating operation against a public key, refresh should always be atomic
+    assert kwargs["atomic"] is True
 
 
-def test_load(mock_engine):
+def test_load_expired(crypto_pub, engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
+    key_manager = KeyManager(engine)
 
-    called_load = 0
-
-    def mock_load(item, *, consistent=None):
-        nonlocal called_load
-        called_load += 1
-        assert item.user_id == user_id
-        assert item.key_id == key_id
-        assert consistent is True
-    mock_engine.load = mock_load
-
-    key = Key.load(user_id, key_id)
-    assert key.user_id == user_id
-    assert key.key_id == key_id
-    assert called_load == 1
-
-
-def test_load_missing(mock_engine):
-    user_id = uuid.uuid4()
-    key_id = uuid.uuid4()
-
-    def mock_load(item, consistent=None):
-        raise bloop.NotModified("load", [item])
-    mock_engine.load = mock_load
+    def on_load(item, *args, **kwargs):
+        item.until = arrow.now().replace(seconds=-5)
+    engine.on_load = on_load
 
     with pytest.raises(NotFound):
-        Key.load(user_id, key_id)
+        key_manager.load(user_id, key_id)
+
+    # Verify load from dynamodb
+    assert len(engine.captured_load_args) == 1
+    item, _, kwargs = engine.captured_load_args[0]
+    assert item.user_id == user_id
+    assert item.key_id == key_id
+    assert kwargs["consistent"] is True
+
+    # Verify atomic delete (revoke) from dynamodb
+    assert len(engine.captured_delete_args) == 1
+    item, _, kwargs = engine.captured_delete_args[0]
+    assert item.user_id == user_id
+    assert item.key_id == key_id
+    assert kwargs["atomic"] is True
 
 
-def test_revoke(mock_engine):
+def test_load_missing(engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
+    key_manager = KeyManager(engine)
 
-    called_delete = 0
+    def on_load(item, *args, **kwargs):
+        raise bloop.NotModified("load", [item])
+    engine.on_load = on_load
 
-    def mock_delete(item, *, atomic=None):
-        nonlocal called_delete
-        called_delete += 1
-        assert item.user_id == user_id
-        assert item.key_id == key_id
-        assert atomic is True
-    mock_engine.delete = mock_delete
+    with pytest.raises(NotFound):
+        key_manager.load(user_id, key_id)
 
-    Key(user_id=user_id, key_id=key_id).revoke()
-    assert called_delete == 1
+    # Verify load from dynamodb
+    assert len(engine.captured_load_args) == 1
+    item, _, kwargs = engine.captured_load_args[0]
+    assert item.user_id == user_id
+    assert item.key_id == key_id
+    assert kwargs["consistent"] is True
