@@ -1,12 +1,62 @@
 import falcon
-from .handlers import authenticate, Unauthorized
+from .models import NotFound
+from .models.key import KeyManager
+from .models.validation import validate, InvalidParameter
+from .signing import verify, BadSignature
 
 
 def lowercase_headers(headers):
     return {key.lower(): value for key, value in headers.items()}
 
 
+def fail(message):
+    raise falcon.HTTPUnauthorized("Authentication failed", message, None)
+
+
+def authenticate(method, path, headers, body, headers_to_sign, key_manager):
+
+    # 1) Check authorization header format
+    if "authorization" not in headers:
+        fail("Must provide 'authorization' header")
+    try:
+        authentication = validate("authorization_header", headers["authorization"])
+    except InvalidParameter as exception:
+        fail("Authorization header did not match required pattern {}".format(exception.message))
+
+    # 2) Check user_id, key_id format
+    try:
+        user_id = validate("user_id", authentication["user_id"])
+    except InvalidParameter as exception:
+        fail("Authorization USER {}".format(exception.message))
+    try:
+        key_id = validate("key_id", authentication["key_id"])
+    except InvalidParameter as exception:
+        fail("Authorization KEYID {}".format(exception.message))
+
+    # 3) Try to load public key
+    try:
+        key = key_manager.load(user_id, key_id)
+    except NotFound:
+        fail("Unknown USER, KEYID ({}, {})".format(user_id, key_id))
+
+    # 4) Check signature
+    try:
+        verify(
+            method, path, headers, body,
+            key.public, authentication["signature"],
+            authentication["headers"].split(" "),
+            headers_to_sign)
+    except BadSignature as exception:
+        fail("Signature validation failed: {}".format(exception.args[0]))
+
+    # Success!  Let callers know who was just authenticated
+    return key.user_id
+
+
 class Authentication:
+    def __init__(self, key_manager: KeyManager):
+        self.key_manager = key_manager
+
     def process_resource(self, req: falcon.Request, resp: falcon.Response, resource, params):
         method = req.method
         path = req.path
@@ -18,9 +68,6 @@ class Authentication:
         body = req.stream.read().decode("utf-8")
         additional_headers_to_sign = getattr(resource, "signed_headers", [])
 
-        try:
-            authenticated_user = authenticate(method, path, headers, body, additional_headers_to_sign)
-        except Unauthorized as exception:
-            # TODO see if resource allows Basic Authorization and retry authentication
-            raise falcon.HTTPUnauthorized("Authentication failed", exception.args[0], None)
+        # TODO try/catch if the resource allows Basic Authorization and retry authentication
+        authenticated_user = authenticate(method, path, headers, body, additional_headers_to_sign, self.key_manager)
         req.context["user_id"] = authenticated_user

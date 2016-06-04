@@ -1,6 +1,7 @@
 import bloop
 import gaas.models
 import gaas.models.key
+import gaas.middleware
 import pytest
 from Crypto.PublicKey import RSA
 
@@ -44,6 +45,26 @@ class MockEngine(bloop.Engine):
         return False
 
 
+class MockKeyManager:
+    def __init__(self):
+        self.captured_load_args = []
+        self._responses = {}
+
+    def load(self, user_id, key_id):
+        self.captured_load_args.append([user_id, key_id])
+        try:
+            return self._responses[(user_id, key_id)]
+        except KeyError:
+            raise gaas.models.NotFound
+
+    def respond(self, user_id, key_id, key):
+        self._responses[(user_id, key_id)] = key
+
+    @property
+    def invoked(self):
+        return bool(self.captured_load_args)
+
+
 @pytest.fixture(scope="session")
 def generate_key():
     """Returns a function for generating keys"""
@@ -83,3 +104,13 @@ def mock_engine():
     # Undo patch
     gaas.models.engine = real_engine
     gaas.models.key.engine = real_engine
+
+
+@pytest.fixture
+def key_manager():
+    return MockKeyManager()
+
+
+@pytest.fixture
+def authentication_middleware(key_manager):
+    return gaas.middleware.Authentication(key_manager)
