@@ -9,13 +9,12 @@ import uuid
 from roughly import near
 
 
-def test_key_type(crypto_pair):
-    _, public = crypto_pair
-    serialized_public = base64.b64encode(public.exportKey(format="DER"))
+def test_key_type(rsa_pub):
+    serialized_public = base64.b64encode(rsa_pub.exportKey(format="DER"))
 
     key_type = PublicKeyType()
-    assert key_type.dynamo_dump(public) == serialized_public.decode("utf-8")
-    assert key_type.dynamo_load(serialized_public) == public
+    assert key_type.dynamo_dump(rsa_pub) == serialized_public.decode("utf-8")
+    assert key_type.dynamo_load(serialized_public) == rsa_pub
 
 
 def test_expired():
@@ -30,7 +29,7 @@ def test_expired():
     assert not key.expired
 
 
-def test_load_valid(crypto_pub, engine):
+def test_load_valid(engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
     key_manager = KeyManager(engine)
@@ -49,7 +48,7 @@ def test_load_valid(crypto_pub, engine):
     engine.save.assert_called_once_with(key, atomic=True, condition=expected_condition)
 
 
-def test_load_expired(crypto_pub, engine):
+def test_load_expired(engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
     key_manager = KeyManager(engine)
@@ -82,6 +81,4 @@ def test_load_missing(engine):
 
     with pytest.raises(NotFound):
         key_manager.load(user_id, key_id)
-
-    # Verify load from dynamodb
     engine.load.assert_called_once_with(Key(user_id=user_id, key_id=key_id), consistent=True)

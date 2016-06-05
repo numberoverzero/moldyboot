@@ -6,6 +6,7 @@ import pytest
 import uuid
 from Crypto.Hash import SHA256
 
+from gaas.models import NotFound
 from gaas.models.key import Key
 from gaas.middleware import authenticate
 from gaas.signing import sign
@@ -27,7 +28,7 @@ def signed_env(method, path, headers, body, private_key, id):
 
 
 @pytest.fixture
-def valid_request(crypto_priv):
+def valid_request(rsa_priv):
     method = "post"
     path = "/some/path?query=string"
     body = "hello world"
@@ -38,7 +39,7 @@ def valid_request(crypto_priv):
     }
     user_id, key_id = uuid.uuid4(), uuid.uuid4()
     id = "{}@{}".format(user_id, key_id)
-    sign(method, path, headers, body, crypto_priv, id)
+    sign(method, path, headers, body, rsa_priv, id)
     return method, path, body, headers, user_id, key_id
 
 
@@ -48,7 +49,7 @@ def test_authenticate_no_auth_header(valid_request, key_manager):
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate(method, path, headers, body, [], key_manager)
     assert "Must provide 'authorization' header" == excinfo.value.description
-    assert not key_manager.invoked
+    key_manager.assert_not_called()
 
 
 def test_authenticate_invalid_auth_header(valid_request, key_manager):
@@ -57,10 +58,10 @@ def test_authenticate_invalid_auth_header(valid_request, key_manager):
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate(method, path, headers, body, [], key_manager)
     assert SIGNATURE_MISMATCH_MESSAGE == excinfo.value.description
-    assert not key_manager.invoked
+    key_manager.assert_not_called()
 
 
-def test_authenticate_invalid_id_format(crypto_priv, key_manager):
+def test_authenticate_invalid_id_format(rsa_priv, key_manager):
     method = "post"
     path = "/some/path?query=string"
     body = "hello world"
@@ -70,15 +71,15 @@ def test_authenticate_invalid_id_format(crypto_priv, key_manager):
         "x-content-sha256": sha256(body)
     }
     key_id = "wrong-separator"
-    sign(method, path, headers, body, crypto_priv, key_id)
+    sign(method, path, headers, body, rsa_priv, key_id)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate(method, path, headers, body, [], key_manager)
     assert SIGNATURE_MISMATCH_MESSAGE == excinfo.value.description
-    assert not key_manager.invoked
+    key_manager.assert_not_called()
 
 
-def test_authenticate_invalid_user_id(crypto_priv, key_manager):
+def test_authenticate_invalid_user_id(rsa_priv, key_manager):
     method = "post"
     path = "/some/path?query=string"
     body = "hello world"
@@ -88,15 +89,15 @@ def test_authenticate_invalid_user_id(crypto_priv, key_manager):
         "x-content-sha256": sha256(body)
     }
     key_id = "bad-format@{}".format(uuid.uuid4())
-    sign(method, path, headers, body, crypto_priv, key_id)
+    sign(method, path, headers, body, rsa_priv, key_id)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate(method, path, headers, body, [], key_manager)
     assert "Authorization USER must be a UUID" == excinfo.value.description
-    assert not key_manager.invoked
+    key_manager.assert_not_called()
 
 
-def test_authenticate_invalid_key_id(crypto_priv, key_manager):
+def test_authenticate_invalid_key_id(rsa_priv, key_manager):
     method = "post"
     path = "/some/path?query=string"
     body = "hello world"
@@ -106,46 +107,51 @@ def test_authenticate_invalid_key_id(crypto_priv, key_manager):
         "x-content-sha256": sha256(body)
     }
     key_id = "{}@bad-format".format(uuid.uuid4())
-    sign(method, path, headers, body, crypto_priv, key_id)
+    sign(method, path, headers, body, rsa_priv, key_id)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate(method, path, headers, body, [], key_manager)
     assert "Authorization KEYID must be a UUID" == excinfo.value.description
-    assert not key_manager.invoked
+    key_manager.assert_not_called()
 
 
 def test_authenticate_key_missing_or_expired(valid_request, key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
+    def load(user_id, key_id):
+        raise NotFound
+    key_manager.load.side_effect = load
+
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate(method, path, headers, body, [], key_manager)
     assert "Unknown USER, KEYID ({}, {})".format(user_id, key_id) == excinfo.value.description
-    assert [user_id, key_id] in key_manager.captured_load_args
+    key_manager.load.assert_called_once_with(user_id, key_id)
 
 
 def test_authenticate_invalid_signature(generate_key, valid_request, key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
     _, wrong_public = generate_key()
-    key_manager.respond(user_id, key_id, Key(user_id=user_id, public=wrong_public))
+
+    key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=wrong_public)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate(method, path, headers, body, [], key_manager)
     assert "Signature validation failed:" in excinfo.value.description
-    assert [user_id, key_id] in key_manager.captured_load_args
+    key_manager.load.assert_called_once_with(user_id, key_id)
 
 
-def test_authenticate_success(crypto_pub, valid_request, key_manager):
+def test_authenticate_success(rsa_pub, valid_request, key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
-    key_manager.respond(user_id, key_id, Key(user_id=user_id, public=crypto_pub))
+    key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
 
     authenticated_user_id = authenticate(method, path, headers, body, [], key_manager)
     assert authenticated_user_id == user_id
-    assert [user_id, key_id] in key_manager.captured_load_args
+    key_manager.load.assert_called_once_with(user_id, key_id)
 
 
-def test_authentication_middleware_success(crypto_priv, crypto_pub, authentication_middleware, key_manager):
+def test_authentication_middleware_success(rsa_priv, rsa_pub, authentication_middleware, key_manager):
     # Build the request
     method = "post"
     path = "https://127.0.0.1:443/some/path?query=string"
@@ -159,10 +165,10 @@ def test_authentication_middleware_success(crypto_priv, crypto_pub, authenticati
     id = "{}@{}".format(user_id, key_id)
 
     # Sign the request
-    sign(method, path, headers, body, crypto_priv, id)
+    sign(method, path, headers, body, rsa_priv, id)
     # Build wsgi env from signed request, patch key loading
     env = helpers.build_env(method, path, headers, body)
-    key_manager.respond(user_id, key_id, Key(user_id=user_id, public=crypto_pub))
+    key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
 
     # Build the api
     api = falcon.API(middleware=[authentication_middleware])
@@ -176,7 +182,7 @@ def test_authentication_middleware_success(crypto_priv, crypto_pub, authenticati
     assert resource.captured_req.context["user_id"] == user_id
 
 
-def test_authentication_middleware_failure(crypto_pub, authentication_middleware, key_manager):
+def test_authentication_middleware_failure(rsa_pub, authentication_middleware, key_manager):
     # Build the request
     method = "post"
     path = "https://127.0.0.1:443/some/path"
@@ -191,7 +197,7 @@ def test_authentication_middleware_failure(crypto_pub, authentication_middleware
     # Forget to sign the request
     # Build wsgi env from unsigned request, patch key loading
     env = helpers.build_env(method, path, headers, body)
-    key_manager.respond(user_id, key_id, Key(user_id=user_id, public=crypto_pub))
+    key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
 
     # Build the api
     api = falcon.API(middleware=[authentication_middleware])

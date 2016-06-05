@@ -3,28 +3,8 @@ import gaas.models
 import gaas.models.key
 import gaas.middleware
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import Mock
 from Crypto.PublicKey import RSA
-
-
-class MockKeyManager:
-    def __init__(self):
-        self.captured_load_args = []
-        self._responses = {}
-
-    def load(self, user_id, key_id):
-        self.captured_load_args.append([user_id, key_id])
-        try:
-            return self._responses[(user_id, key_id)]
-        except KeyError:
-            raise gaas.models.NotFound
-
-    def respond(self, user_id, key_id, key):
-        self._responses[(user_id, key_id)] = key
-
-    @property
-    def invoked(self):
-        return bool(self.captured_load_args)
 
 
 @pytest.fixture(scope="session")
@@ -38,28 +18,28 @@ def generate_key():
 
 
 @pytest.fixture(scope="session")
-def crypto_pair(generate_key):
+def rsa_pair(generate_key):
     return generate_key()
 
 
 @pytest.fixture(scope="session")
-def crypto_priv(crypto_pair):
-    return crypto_pair[0]
+def rsa_priv(rsa_pair):
+    return rsa_pair[0]
 
 
 @pytest.fixture(scope="session")
-def crypto_pub(crypto_pair):
-    return crypto_pair[1]
+def rsa_pub(rsa_pair):
+    return rsa_pair[1]
 
 
 @pytest.fixture
 def engine():
-    return MagicMock(spec=bloop.Engine)
+    return Mock(spec=bloop.Engine)
 
 
 @pytest.fixture
 def key_manager():
-    return MockKeyManager()
+    return Mock(spec=gaas.models.key.KeyManager)
 
 
 @pytest.fixture
