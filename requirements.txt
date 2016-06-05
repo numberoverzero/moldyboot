@@ -6,5 +6,6 @@ httpie
 humanize
 pycrypto
 pytest
+roughly
 texas
 uritools

@@ -1,36 +1,10 @@
+import bloop
 import gaas.models
 import gaas.models.key
 import gaas.middleware
 import pytest
+from unittest.mock import MagicMock
 from Crypto.PublicKey import RSA
-
-
-class MockEngine:
-    def __init__(self):
-        self.captured_load_args = []
-        self.captured_save_args = []
-        self.captured_delete_args = []
-
-    def on_load(self, item, *args, **kwargs):
-        pass
-
-    def load(self, item, *args, **kwargs):
-        self.captured_load_args.append([item, args, kwargs])
-        self.on_load(item, *args, **kwargs)
-
-    def on_save(self, item, *args, **kwargs):
-        pass
-
-    def save(self, item, *args, **kwargs):
-        self.captured_save_args.append([item, args, kwargs])
-        self.on_save(item, *args, **kwargs)
-
-    def on_delete(self, item, *args, **kwargs):
-        pass
-
-    def delete(self, item, *args, **kwargs):
-        self.captured_delete_args.append([item, args, kwargs])
-        self.on_delete(item, *args, **kwargs)
 
 
 class MockKeyManager:
@@ -80,7 +54,7 @@ def crypto_pub(crypto_pair):
 
 @pytest.fixture
 def engine():
-    return MockEngine()
+    return MagicMock(spec=bloop.Engine)
 
 
 @pytest.fixture
