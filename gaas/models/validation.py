@@ -49,20 +49,20 @@ def validate(parameter_name, value):
     return result.value
 
 
-def validate_uuid(value):
+def _validate_uuid(value):
     if isinstance(value, uuid.UUID):
         return Result.of(value)
     try:
         return Result.of(uuid.UUID(value))
     except (ValueError, TypeError, AttributeError):
         return Result.error("must be a UUID")
-validators["user_id"] = validate_uuid
-validators["key_id"] = validate_uuid
+validators["user_id"] = _validate_uuid
+validators["key_id"] = _validate_uuid
 
 
-def validate_authorization_header(signature):
+def _validate_authorization_header(signature):
     match = SIGNATURE_PATTERN.match(signature)
     if not match:
         return Result.error(SIGNATURE_PATTERN_HUMAN)
     return Result.of(match.groupdict())
-validators["authorization_header"] = validate_authorization_header
+validators["authorization_header"] = _validate_authorization_header
