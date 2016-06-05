@@ -8,7 +8,8 @@ def test_validate_unknown_parameter():
         validate("not a real parameter name", "unused value")
 
 
-def test_validate_user_id():
+@pytest.mark.parametrize("parameter_name", ["user_id", "key_id"])
+def test_validate_uuid_id(parameter_name):
     invalid = [
         None,
         "",
@@ -21,15 +22,15 @@ def test_validate_user_id():
 
     for value in invalid:
         with pytest.raises(InvalidParameter) as excinfo:
-            validate("user_id", value)
+            validate(parameter_name, value)
         exception = excinfo.value
-        assert "user_id" == exception.parameter_name
+        assert parameter_name == exception.parameter_name
         assert value == exception.value
         assert "must be a UUID" == exception.message
 
     for value in valid:
-        same = validate("user_id", value)
-        also_same = validate("user_id", str(value))
+        same = validate(parameter_name, value)
+        also_same = validate(parameter_name, str(value))
         assert value == same == also_same
 
 
