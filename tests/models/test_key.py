@@ -50,20 +50,17 @@ def test_load_valid(key_manager):
 def test_load_expired(key_manager):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
-    expired = None
 
     # Patch engine to return a key with expiry < now
     def load(item, *args, **kwargs):
-        nonlocal expired
-        expired = arrow.now().replace(seconds=-5)
-        item.until = expired
+        item.until = arrow.now().replace(seconds=-2)
     key_manager.engine.load.side_effect = load
 
     with pytest.raises(NotFound):
         key_manager.load(user_id, key_id)
 
     # Consistent load, followed by atomic delete (revoke)
-    expired_key = Key(user_id=user_id, key_id=key_id, until=expired)
+    expired_key = Key(user_id=user_id, key_id=key_id, until=near(arrow.now(), seconds=3))
     key_manager.engine.load.assert_called_once_with(expired_key, consistent=True)
     key_manager.engine.delete.assert_called_once_with(expired_key, atomic=True)
 
