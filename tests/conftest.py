@@ -33,7 +33,7 @@ def rsa_pub(rsa_pair):
 
 
 @pytest.fixture
-def engine():
+def mock_engine():
     return Mock(spec=bloop.Engine)
 
 

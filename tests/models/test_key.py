@@ -29,29 +29,29 @@ def test_expired():
     assert not key.expired
 
 
-def test_load_valid(engine):
+def test_load_valid(mock_engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
-    key_manager = KeyManager(engine)
+    key_manager = KeyManager(mock_engine)
 
     # Patch engine to return a key with expiry > now
     def load(item, *args, **kwargs):
         item.until = arrow.now().replace(seconds=5)
-    engine.load.side_effect = load
+    mock_engine.load.side_effect = load
 
     key = key_manager.load(user_id, key_id)
 
     # Consistent load, followed by atomic save (refresh)
     # roughly.near lets us use exact matches (assert called) with approximate times
     expected_condition = Key.until >= near(arrow.now(), seconds=5)
-    engine.load.assert_called_once_with(key, consistent=True)
-    engine.save.assert_called_once_with(key, atomic=True, condition=expected_condition)
+    mock_engine.load.assert_called_once_with(key, consistent=True)
+    mock_engine.save.assert_called_once_with(key, atomic=True, condition=expected_condition)
 
 
-def test_load_expired(engine):
+def test_load_expired(mock_engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
-    key_manager = KeyManager(engine)
+    key_manager = KeyManager(mock_engine)
     expired = None
 
     # Patch engine to return a key with expiry < now
@@ -59,26 +59,26 @@ def test_load_expired(engine):
         nonlocal expired
         expired = arrow.now().replace(seconds=-5)
         item.until = expired
-    engine.load.side_effect = load
+    mock_engine.load.side_effect = load
 
     with pytest.raises(NotFound):
         key_manager.load(user_id, key_id)
 
     # Consistent load, followed by atomic delete (revoke)
     expired_key = Key(user_id=user_id, key_id=key_id, until=expired)
-    engine.load.assert_called_once_with(expired_key, consistent=True)
-    engine.delete.assert_called_once_with(expired_key, atomic=True)
+    mock_engine.load.assert_called_once_with(expired_key, consistent=True)
+    mock_engine.delete.assert_called_once_with(expired_key, atomic=True)
 
 
-def test_load_missing(engine):
+def test_load_missing(mock_engine):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
-    key_manager = KeyManager(engine)
+    key_manager = KeyManager(mock_engine)
 
     def load(item, *args, **kwargs):
         raise bloop.NotModified("load", [item])
-    engine.load.side_effect = load
+    mock_engine.load.side_effect = load
 
     with pytest.raises(NotFound):
         key_manager.load(user_id, key_id)
-    engine.load.assert_called_once_with(Key(user_id=user_id, key_id=key_id), consistent=True)
+    mock_engine.load.assert_called_once_with(Key(user_id=user_id, key_id=key_id), consistent=True)
