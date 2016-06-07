@@ -38,10 +38,15 @@ def mock_engine():
 
 
 @pytest.fixture
-def key_manager():
+def mock_key_manager():
     return Mock(spec=gaas.models.key.KeyManager)
 
 
 @pytest.fixture
-def authentication_middleware(key_manager):
-    return gaas.middleware.Authentication(key_manager)
+def key_manager(mock_engine):
+    return gaas.models.key.KeyManager(mock_engine)
+
+
+@pytest.fixture
+def authentication_middleware(mock_key_manager):
+    return gaas.middleware.Authentication(mock_key_manager)
