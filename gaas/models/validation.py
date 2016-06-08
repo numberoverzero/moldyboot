@@ -18,6 +18,8 @@ SIGNATURE_PATTERN = re.compile(
     $
     """, re.VERBOSE)
 SIGNATURE_PATTERN_HUMAN = """^Signature headers="([^"]*)" id="([^@"]*)@([^"]*)" signature="([^"]*)"$"""
+# maximum 16 characters, must start with an alphabetic.  lower, upper, digits only.
+USERNAME_PATTERN = re.compile("^[a-zA-Z][a-zA-Z0-9]{2,15}$")
 
 
 class Result:
@@ -66,3 +68,18 @@ def _validate_authorization_header(signature):
         return Result.error(SIGNATURE_PATTERN_HUMAN)
     return Result.of(match.groupdict())
 validators["authorization_header"] = _validate_authorization_header
+
+
+def _validate_email(email):
+    if "@" not in email or len(email) < 3:
+        return Result.error("must contain @ and be at least 3 characters")
+    return Result.of(email)
+validators["email"] = _validate_email
+
+
+def _validate_username(username):
+    match = USERNAME_PATTERN.match(username)
+    if not match:
+        return Result.error("must start with a letter; only letters and digits; between 3 and 16 characters long")
+    return Result.of(username)
+validators["username"] = _validate_username

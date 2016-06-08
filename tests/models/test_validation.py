@@ -14,6 +14,13 @@ invalid_uuids = [
     "not a uuid",
 ]
 
+valid_usernames = ["abc", "aaa", "a00"]
+invalid_usernames = ["", "aa", "ab!", "0ab"]
+
+invalid_emails = ["", "a@", "@a", "aaa"]
+valid_emails = ["a@c", "!@!", "@@@"]
+
+
 invalid_signatures = [
     "",
     # missing sections
@@ -76,3 +83,27 @@ def test_valid_authorization_header():
         "signature": "d"}
     actual = validate("authorization_header", valid)
     assert actual == expected
+
+
+@pytest.mark.parametrize("valid_email", valid_emails)
+def test_valid_email(valid_email):
+    assert validate("email", valid_email) == valid_email
+
+
+@pytest.mark.parametrize("invalid_email", invalid_emails)
+def test_invalid_email(invalid_email):
+    with pytest.raises(InvalidParameter) as excinfo:
+        validate("email", invalid_email)
+    assert "email" == excinfo.value.parameter_name
+
+
+@pytest.mark.parametrize("valid_username", valid_usernames)
+def test_valid_username(valid_username):
+    assert validate("username", valid_username) == valid_username
+
+
+@pytest.mark.parametrize("invalid_username", invalid_usernames)
+def test_invalid_username(invalid_username):
+    with pytest.raises(InvalidParameter) as excinfo:
+        validate("username", invalid_username)
+    assert "username" == excinfo.value.parameter_name
