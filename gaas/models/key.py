@@ -51,20 +51,20 @@ class KeyManager:
         except bloop.NotModified:
             raise NotFound
         if key.expired:
-            self._revoke(key)
+            self.revoke(key)
             raise NotFound
         else:
-            self._refresh(key)
+            self.refresh(key)
             return key
 
-    def _revoke(self, key):
+    def revoke(self, key: Key):
         # TODO should push to an async task queue, not blocking
         # TODO handle bloop.ConstraintViolation
         # Atomic because it's possible someone refreshed the key just after a load, and this revoke
         # shouldn't apply. Only revoke keys that meet whatever criteria tried to clean them up initially.
         self.engine.delete(key, atomic=True)
 
-    def _refresh(self, key):
+    def refresh(self, key: Key):
         # TODO should push to an async task queue, not blocking
         # TODO offset should be loaded from config
         # TODO handle bloop.ConstraintViolation
