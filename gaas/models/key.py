@@ -1,9 +1,11 @@
 import arrow
 import bloop
+import uuid
 from bloop import Column, UUID, DateTime, Binary
 from Crypto.PublicKey import RSA
+from typing import Union
 
-from . import BaseModel, NotFound
+from . import persist_unique, BaseModel, NotFound
 from .validation import validate
 
 
@@ -40,6 +42,13 @@ class Key(BaseModel):
 class KeyManager:
     def __init__(self, engine: bloop.Engine):
         self.engine = engine
+
+    def new(self, user_id: Union[str, uuid.UUID], public: Union[str, bytes]):
+        user_id = validate("user_id", user_id)
+        public = validate("public_key", public)
+        key = Key(user_id=user_id, public=public, until=arrow.now().replace(hours=1))
+        persist_unique(key, self.engine, "key_id", uuid.uuid4)
+        return key
 
     def load(self, user_id, key_id):
         user_id = validate("user_id", user_id)

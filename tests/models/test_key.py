@@ -1,12 +1,13 @@
-from gaas.models import NotFound
+from gaas.models import NotFound, NotSaved
 from gaas.models.key import PublicKeyType, Key
+from gaas.models.validation import InvalidParameter
 
 import arrow
 import base64
 import bloop
 import pytest
 import uuid
-from roughly import near
+from roughly import near, has_type
 
 
 def test_key_type(rsa_pub):
@@ -27,6 +28,52 @@ def test_expired():
     # key is valid until 5 seconds from now
     key = Key(until=now.replace(seconds=5))
     assert not key.expired
+
+
+def test_new_invalid_user_id(rsa_pub, key_manager):
+    user_id = "not a uuid"
+
+    with pytest.raises(InvalidParameter) as excinfo:
+        key_manager.new(user_id, rsa_pub)
+    assert excinfo.value.parameter_name == "user_id"
+    key_manager.engine.assert_not_called()
+
+
+def test_new_invalid_public_key(key_manager):
+    user_id = uuid.uuid4()
+    public = "not an rsa public key"
+    with pytest.raises(InvalidParameter) as excinfo:
+        key_manager.new(user_id, public)
+    assert excinfo.value.parameter_name == "public_key"
+    key_manager.engine.assert_not_called()
+
+
+def test_new_unique_fails(rsa_pub, key_manager):
+    user_id = uuid.uuid4()
+    public = rsa_pub.exportKey("PEM").decode("utf-8")
+
+    roughly_one_hour = near(arrow.now().replace(hours=1), seconds=5)
+    expected_key = Key(user_id=user_id, public=rsa_pub, until=roughly_one_hour, key_id=has_type(uuid.UUID))
+    expected_condition = Key.user_id.is_(None) & Key.key_id.is_(None)
+    key_manager.engine.save.side_effect = bloop.ConstraintViolation("save", expected_key)
+
+    with pytest.raises(NotSaved) as excinfo:
+        key_manager.new(user_id, public)
+    assert excinfo.value.obj == expected_key
+
+    key_manager.engine.save.assert_any_call(expected_key, condition=expected_condition)
+
+
+def test_new_success(rsa_pub, key_manager):
+    user_id = uuid.uuid4()
+    public = rsa_pub.exportKey("PEM").decode("utf-8")
+
+    key_manager.new(user_id, public)
+
+    roughly_one_hour = near(arrow.now().replace(hours=1), seconds=5)
+    expected_key = Key(user_id=user_id, public=rsa_pub, until=roughly_one_hour, key_id=has_type(uuid.UUID))
+    expected_condition = Key.user_id.is_(None) & Key.key_id.is_(None)
+    key_manager.engine.save.assert_called_once_with(expected_key, condition=expected_condition)
 
 
 def test_load_valid(key_manager):
