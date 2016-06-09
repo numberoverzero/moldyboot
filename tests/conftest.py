@@ -1,6 +1,7 @@
 import bloop
 import gaas.models
 import gaas.models.key
+import gaas.models.user
 import gaas.middleware
 import pytest
 from unittest.mock import Mock
@@ -45,6 +46,11 @@ def mock_key_manager():
 @pytest.fixture
 def key_manager(mock_engine):
     return gaas.models.key.KeyManager(mock_engine)
+
+
+@pytest.fixture
+def user_manager(mock_engine):
+    return gaas.models.user.UserManager(mock_engine)
 
 
 @pytest.fixture
