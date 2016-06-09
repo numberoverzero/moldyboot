@@ -1,4 +1,5 @@
 import base64
+import json
 import uuid
 
 import arrow
@@ -218,6 +219,79 @@ def test_authentication_middleware_bypass(authentication_middleware):
 
     response_body = api(env, response)
     assert response_body == [b"skipped auth!"]
+
+
+def test_authentication_middleware_basic_success(authentication_middleware, mock_user_manager):
+    username = "abcUser"
+    password = "|-|unterZ"
+    correct_hash = hash(password, 12)
+    user_id = uuid.uuid4()
+    mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
+
+    class Resource:
+        @tag("authentication-basic")
+        def on_get(self, req, resp):
+            assert req.context["authentication"] == {"user": user_id}
+            resp.data = b"basic auth!"
+            return falcon.HTTP_200
+    resource = Resource()
+
+    api = falcon.API(middleware=[authentication_middleware])
+    api.add_route("/basic", resource)
+    env = helpers.build_env("get", "/basic", dict(), json.dumps({"username": username, "password": password}))
+    response = falcon.testing.StartResponseMock()
+
+    response_body = api(env, response)
+    assert response_body == [b"basic auth!"]
+
+
+def test_authentication_middleware_basic_no_username(authentication_middleware, mock_user_manager):
+    password = "|-|unterZ"
+    correct_hash = hash(password, 12)
+    user_id = uuid.uuid4()
+    mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
+
+    class Resource:
+        @tag("authentication-basic")
+        def on_get(self, req, resp):
+            assert req.context["authentication"] == {"user": user_id}
+            resp.data = b"basic auth!"
+            return falcon.HTTP_200
+    resource = Resource()
+
+    api = falcon.API(middleware=[authentication_middleware])
+    api.add_route("/basic", resource)
+    env = helpers.build_env("get", "/basic", dict(), json.dumps({"password": password}))
+    response = falcon.testing.StartResponseMock()
+
+    response_body = api(env, response)
+    assert response.status == "401 Unauthorized"
+    assert b"username is missing" in response_body[0]
+
+
+def test_authentication_middleware_basic_no_password(authentication_middleware, mock_user_manager):
+    username = "abcUser"
+    password = "|-|unterZ"
+    correct_hash = hash(password, 12)
+    user_id = uuid.uuid4()
+    mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
+
+    class Resource:
+        @tag("authentication-basic")
+        def on_get(self, req, resp):
+            assert req.context["authentication"] == {"user": user_id}
+            resp.data = b"basic auth!"
+            return falcon.HTTP_200
+    resource = Resource()
+
+    api = falcon.API(middleware=[authentication_middleware])
+    api.add_route("/basic", resource)
+    env = helpers.build_env("get", "/basic", dict(), json.dumps({"username": username}))
+    response = falcon.testing.StartResponseMock()
+
+    response_body = api(env, response)
+    assert response.status == "401 Unauthorized"
+    assert b"password is missing" in response_body[0]
 
 
 def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, authentication_middleware, mock_key_manager):

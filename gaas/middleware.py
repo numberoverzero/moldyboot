@@ -96,7 +96,7 @@ class Authentication:
 
     def _basic_auth(self, req: falcon.Request):
         # TODO move json loading to different middleware
-        body = json.loads(req.stream.read())
+        body = json.loads(req.stream.read().decode("utf-8"))
         try:
             username = body["username"]
         except KeyError:
