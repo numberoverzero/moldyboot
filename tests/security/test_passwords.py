@@ -11,13 +11,13 @@ def test_hash_small_rounds():
 
 def test_hash_str():
     password = "s3cr3t!"
-    hashed = hash(password, 12).encode("utf-8")
+    hashed = hash(password, 12)
     assert bcrypt.hashpw(password.encode("utf-8"), hashed) == hashed
 
 
 def test_hash_bytes():
     password = b"s3cr3t!"
-    hashed = hash(password, 12).encode("utf-8")
+    hashed = hash(password, 12)
     assert bcrypt.hashpw(password, hashed) == hashed
 
 

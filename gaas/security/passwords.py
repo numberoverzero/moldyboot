@@ -12,7 +12,7 @@ def hash(password: Union[str, bytes], rounds):
     if isinstance(password, str):
         password = password.encode("utf-8")
     hashed = bcrypt.hashpw(password, bcrypt.gensalt(rounds))
-    return hashed.decode("utf-8")
+    return hashed
 
 
 def check(password: Union[str, bytes], expected_hash: Union[str, bytes]):
