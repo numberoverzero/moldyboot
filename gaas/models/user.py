@@ -62,7 +62,7 @@ class UserManager:
             raise NotSaved(user)
         return user
 
-    def load_by_user_id(self, user_id):
+    def load_by_id(self, user_id):
         user_id = validate("user_id", user_id)
         user = User(user_id=user_id)
         try:
@@ -71,14 +71,14 @@ class UserManager:
             raise NotFound
         return user
 
-    def load_by_username(self, username):
+    def load_by_name(self, username):
         username = validate("username", username)
         username = UserName(username=username)
         try:
             self.engine.load(username)
         except bloop.NotModified:
             raise NotFound
-        return self.load_by_user_id(username.user_id)
+        return self.load_by_id(username.user_id)
 
     def verify(self, user: User):
         user.verification_code = None

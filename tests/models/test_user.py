@@ -1,4 +1,4 @@
-from gaas.models import AlreadyExists, NotSaved
+from gaas.models import AlreadyExists, NotSaved, NotFound
 from gaas.models.validation import InvalidParameter
 from gaas.models.user import UserName, User
 
@@ -63,16 +63,7 @@ def test_new_username_exists(user_manager):
 
 def test_new_user_associate_fails(user_manager):
 
-    def save(obj, *args, **kwargs):
-        # only catch the second UserName save
-        if isinstance(obj, User):
-            return
-        # UserName won't have a user_id on the first call
-        if not hasattr(obj, "user_id"):
-            return
-        # fail the second save
-        raise bloop.ConstraintViolation("save", obj)
-    user_manager.engine.save.side_effect = save
+    user_manager.engine.save.side_effect = [None, None, bloop.ConstraintViolation("save", None)]
 
     username = "username"
     email = "email@domain.com"
@@ -109,3 +100,82 @@ def test_new_user_success(user_manager):
     user_manager.engine.save.assert_called_with(expected_username, atomic=True)
 
     assert returned_user == expected_user
+
+
+def test_load_invalid_user_id(user_manager):
+    invalid_user_id = "not a uuid"
+
+    with pytest.raises(InvalidParameter) as excinfo:
+        user_manager.load_by_id(invalid_user_id)
+    assert excinfo.value.parameter_name == "user_id"
+    user_manager.engine.save.assert_not_called()
+
+
+def test_load_unknown_user_id(user_manager):
+    user_id = uuid.uuid4()
+    expected_user = User(user_id=user_id)
+    user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_user])
+
+    with pytest.raises(NotFound):
+        user_manager.load_by_id(user_id)
+    user_manager.engine.load.assert_called_once_with(expected_user)
+
+
+def test_load_user_id_success(user_manager):
+    user_id = uuid.uuid4()
+    user = user_manager.load_by_id(user_id)
+    assert user.user_id == user_id
+
+
+# ==========================================
+
+def test_load_invalid_username(user_manager):
+    invalid_username = "0af"
+
+    with pytest.raises(InvalidParameter) as excinfo:
+        user_manager.load_by_name(invalid_username)
+    assert excinfo.value.parameter_name == "username"
+    user_manager.engine.load.assert_not_called()
+
+
+def test_load_unknown_username(user_manager):
+    username = "fooBar00"
+    expected_username = UserName(username=username)
+    user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_username])
+
+    with pytest.raises(NotFound):
+        user_manager.load_by_name(username)
+    user_manager.engine.load.assert_called_once_with(expected_username)
+
+
+def test_load_username_success(user_manager):
+    username = "fooBar00"
+    user_id = uuid.uuid4()
+
+    def load(obj, *args, **kwargs):
+        if isinstance(obj, UserName):
+            obj.user_id = user_id
+    user_manager.engine.load.side_effect = load
+
+    user = user_manager.load_by_name(username)
+    assert user.user_id == user_id
+    user_manager.engine.load.assert_any_call(UserName(username=username, user_id=user_id))
+    user_manager.engine.load.assert_any_call(User(user_id=user_id))
+
+
+def test_verify_constraint_violation(user_manager):
+    user = User(user_id=uuid.uuid4())
+    user_manager.engine.save.side_effect = bloop.ConstraintViolation("save", user)
+
+    with pytest.raises(NotSaved) as excinfo:
+        user_manager.verify(user)
+    assert excinfo.value.obj is user
+    user_manager.engine.save.assert_called_once_with(user, atomic=True)
+
+
+def test_verify_success(user_manager):
+    user = User(user_id=uuid.uuid4())
+
+    user_manager.verify(user)
+    user_manager.engine.save.assert_called_once_with(user, atomic=True)
+    assert user.verification_code is None
