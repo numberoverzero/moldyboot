@@ -56,8 +56,6 @@ def test_new_invalid_email(user_manager):
     user_manager.engine.assert_not_called()
 
 
-# TODO test new invalid password hash
-
 def test_new_username_exists(user_manager):
     user_manager.engine.save.side_effect = bloop.ConstraintViolation("save", object())
 

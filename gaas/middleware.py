@@ -56,12 +56,11 @@ def authenticate_signature(method, path, headers, body, headers_to_sign, key_man
 
 
 def authenticate_password(username, password, user_manager: UserManager):
-    # 1) Check username, password
+    # 1) Check username (skip password; illegal values will fail the hash cmp anyway)
     try:
         username = validate("username", username)
     except InvalidParameter:
         fail("Invalid username/password")
-    # TODO check password
     # 2) Check that user exists
     try:
         user = user_manager.load_by_name(username)
