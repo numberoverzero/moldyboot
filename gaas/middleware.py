@@ -1,6 +1,8 @@
 import falcon
+import json
 
 from gaas.security import signatures, passwords
+from .resources import has_tag, get_metadata
 from .models import NotFound
 from .models.key import KeyManager
 from .models.user import UserManager
@@ -81,6 +83,32 @@ class Authentication:
         self.user_manager = user_manager
 
     def process_resource(self, req: falcon.Request, resp: falcon.Response, resource, params):
+
+        # Auth bypass (ie. email verification)
+        if has_tag(resource, req.method, "authentication-skip"):
+            return
+        # Use basic auth instead of signature (ie. posting a new public key)
+        elif has_tag(resource, req.method, "authentication-basic"):
+            self._basic_auth(req)
+        # Everyone else gets signature auth
+        else:
+            self._signature_auth(req, resource)
+
+    def _basic_auth(self, req: falcon.Request):
+        # TODO move json loading to different middleware
+        body = json.loads(req.stream.read())
+        try:
+            username = body["username"]
+        except KeyError:
+            fail("username is missing")
+        try:
+            password = body["password"]
+        except KeyError:
+            fail("password is missing")
+        user_id = authenticate_password(username, password, self.user_manager)
+        req.context["authentication"] = {"user": user_id}
+
+    def _signature_auth(self, req: falcon.Request, resource):
         method = req.method
         path = req.path
         # query_string will always be a string, which means that omitted/empty will be conflated.
@@ -90,8 +118,10 @@ class Authentication:
         headers = lowercase_headers(req.headers)
         body = req.stream.read().decode("utf-8")
 
-        # Stored on the resource as {method: [headers]}
-        additional_headers_to_sign = getattr(resource, "signed_headers", {})
-        additional_headers_to_sign = additional_headers_to_sign.get(method.lower(), [])
+        # Added with @resources.require_signed_header("some-header")
+        try:
+            additional_headers_to_sign = get_metadata(resource, method, "_additional_signed_headers")
+        except AttributeError:
+            additional_headers_to_sign = []
         key = authenticate_signature(method, path, headers, body, additional_headers_to_sign, self.key_manager)
         req.context["authentication"] = {"key": key, "user": key.user_id}

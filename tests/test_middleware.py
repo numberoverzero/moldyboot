@@ -8,6 +8,7 @@ import helpers
 import pytest
 from Crypto.Hash import SHA256
 
+from gaas.resources import tag
 from gaas.middleware import authenticate_signature, authenticate_password
 from gaas.models import NotFound
 from gaas.models.key import Key
@@ -202,7 +203,24 @@ def test_authenticate_password_success(mock_user_manager):
     mock_user_manager.load_by_name.assert_called_once_with(username)
 
 
-def test_authentication_middleware_success(rsa_priv, rsa_pub, authentication_middleware, mock_key_manager):
+def test_authentication_middleware_bypass(authentication_middleware):
+    class Resource:
+        @tag("authentication-skip")
+        def on_get(self, req, resp):
+            resp.data = b"skipped auth!"
+            return falcon.HTTP_200
+    resource = Resource()
+
+    api = falcon.API(middleware=[authentication_middleware])
+    api.add_route("/bypass", resource)
+    env = helpers.build_env("get", "/bypass", dict(), "")
+    response = falcon.testing.StartResponseMock()
+
+    response_body = api(env, response)
+    assert response_body == [b"skipped auth!"]
+
+
+def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, authentication_middleware, mock_key_manager):
     # Build the request
     method = "post"
     path = "https://127.0.0.1:443/some/path?query=string"
@@ -234,7 +252,7 @@ def test_authentication_middleware_success(rsa_priv, rsa_pub, authentication_mid
     assert resource.captured_req.context["authentication"] == {"key": key, "user": user_id}
 
 
-def test_authentication_middleware_failure(rsa_pub, authentication_middleware, mock_key_manager):
+def test_authentication_middleware_signature_failure(rsa_pub, authentication_middleware, mock_key_manager):
     # Build the request
     method = "post"
     path = "https://127.0.0.1:443/some/path"
