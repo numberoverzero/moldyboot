@@ -56,16 +56,22 @@ def authenticate_signature(method, path, headers, body, headers_to_sign, key_man
 
 
 def authenticate_password(username, password, user_manager: UserManager):
-    # 1) Check that user exists
+    # 1) Check username, password
+    try:
+        username = validate("username", username)
+    except InvalidParameter:
+        fail("Invalid username/password")
+    # TODO check password
+    # 2) Check that user exists
     try:
         user = user_manager.load_by_name(username)
     except NotFound:
-        fail("Invalid user/password")
-    # 2) Compare passwords
+        fail("Invalid username/password")
+    # 3) Compare passwords
     try:
         passwords.check(password, user.password_hash)
     except passwords.BadPassword:
-        fail("Invalid user/password")
+        fail("Invalid username/password")
     # Success! Return user_id of the user that just authenticated
     return user.user_id
 
