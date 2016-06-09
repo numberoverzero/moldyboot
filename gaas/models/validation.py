@@ -90,14 +90,14 @@ def _validate_username(username):
 validators["username"] = _validate_username
 
 
-def _validate_public(public):
+def _validate_public_key(public):
     if isinstance(public, RSA._RSAobj):
         return Result.of(public.publickey())
     try:
         return Result.of(RSA.importKey(public))
     except (ValueError, IndexError, TypeError):
         return Result.error("invalid format")
-validators["public_key"] = _validate_public
+validators["public_key"] = _validate_public_key
 
 
 def _validate_password_hash(password_hash):
