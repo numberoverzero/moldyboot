@@ -22,6 +22,8 @@ SIGNATURE_PATTERN = re.compile(
 SIGNATURE_PATTERN_HUMAN = """^Signature headers="([^"]*)" id="([^@"]*)@([^"]*)" signature="([^"]*)"$"""
 # maximum 16 characters, must start with an alphabetic.  lower, upper, digits only.
 USERNAME_PATTERN = re.compile("^[a-zA-Z][a-zA-Z0-9]{2,15}$")
+# $2b$\d\d$[53 non-standard base64]
+BCRYPT_HASH_PATTERN = re.compile(b"^\$2b\$\d\d\$[a-zA-Z0-9/.]{53}$")
 
 
 class Result:
@@ -95,3 +97,13 @@ def _validate_public(public):
     except (ValueError, IndexError, TypeError):
         return Result.error("invalid format")
 validators["public_key"] = _validate_public
+
+
+def _validate_password_hash(password_hash):
+    if isinstance(password_hash, str):
+        password_hash = password_hash.encode("utf-8")
+    match = BCRYPT_HASH_PATTERN.match(password_hash)
+    if not match:
+        return Result.error("Must be a password hash (did you forget to bcrypt?)")
+    return Result.of(password_hash)
+validators["password_hash"] = _validate_password_hash

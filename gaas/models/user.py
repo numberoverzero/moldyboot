@@ -39,20 +39,21 @@ class UserManager:
         self.engine = engine
 
     def new(self, username: str, email: str, password_hash: str):
-        # 1) Try to reserve username
-        # 2) Try to create unique user_id
-        # 3) Store user_id on username
-        email = validate("email", email)
+        # 1) Validate username, email, password_hash
         username = validate("username", username)
-        # TODO validate password_hash matches bcrypt format
+        email = validate("email", email)
+        password_hash = validate("password_hash", password_hash)
+        # 2) Try to reserve username
         username = UserName(username=username, created=arrow.now())
         try:
             self.engine.save(username, condition=UserName.username.is_(None))
         except ConstraintViolation:
             raise AlreadyExists
+        # 3) Try to create unique user_id
         user = User(password_hash=password_hash, email=email, verification_code=uuid.uuid4())
         persist_unique(user, self.engine, "user_id", uuid.uuid4)
 
+        # 4) Store user_id on username
         try:
             username.user_id = user.user_id
             self.engine.save(username, atomic=True)

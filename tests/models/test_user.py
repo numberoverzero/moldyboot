@@ -3,10 +3,16 @@ from gaas.models.validation import InvalidParameter
 from gaas.models.user import UserName, User
 
 import arrow
+import bcrypt
 import bloop
 import pytest
 import uuid
 from roughly import near, has_type
+
+valid_username = "abc"
+valid_email = "a@b"
+# Intentionally low rounds for speed
+valid_password_hash = bcrypt.hashpw(b"hunter2", bcrypt.gensalt(4))
 
 
 def test_user_is_verified():
@@ -25,22 +31,27 @@ def test_user_is_verified():
 
 def test_new_invalid_username(user_manager):
     username = "!abc"
-    email = "a@b"
-    password_hash = b"not-a-real-hash"
 
     with pytest.raises(InvalidParameter) as excinfo:
-        user_manager.new(username, email, password_hash)
+        user_manager.new(username, valid_email, valid_password_hash)
     assert excinfo.value.parameter_name == "username"
     user_manager.engine.assert_not_called()
 
 
-def test_new_invalid_email(user_manager):
-    username = "abc"
-    email = "abc"
+def test_new_invalid_password_hash(user_manager):
     password_hash = b"not-a-real-hash"
 
     with pytest.raises(InvalidParameter) as excinfo:
-        user_manager.new(username, email, password_hash)
+        user_manager.new(valid_username, valid_email, password_hash)
+    assert excinfo.value.parameter_name == "password_hash"
+    user_manager.engine.assert_not_called()
+
+
+def test_new_invalid_email(user_manager):
+    email = "abc"
+
+    with pytest.raises(InvalidParameter) as excinfo:
+        user_manager.new(valid_username, email, valid_password_hash)
     assert excinfo.value.parameter_name == "email"
     user_manager.engine.assert_not_called()
 
@@ -48,48 +59,39 @@ def test_new_invalid_email(user_manager):
 # TODO test new invalid password hash
 
 def test_new_username_exists(user_manager):
-    username = "username"
-    email = "email@domain.com"
-    password_hash = b"not-a-real-hash"
-
     user_manager.engine.save.side_effect = bloop.ConstraintViolation("save", object())
 
     with pytest.raises(AlreadyExists):
-        user_manager.new(username, email, password_hash)
-    expected_username = UserName(username=username, created=near(arrow.now(), seconds=2))
+        user_manager.new(valid_username, valid_email, valid_password_hash)
+    expected_username = UserName(username=valid_username, created=near(arrow.now(), seconds=2))
     expected_condition = UserName.username.is_(None)
     user_manager.engine.save.assert_called_once_with(expected_username, condition=expected_condition)
 
 
 def test_new_user_associate_fails(user_manager):
-
     user_manager.engine.save.side_effect = [None, None, bloop.ConstraintViolation("save", None)]
 
-    username = "username"
-    email = "email@domain.com"
-    password_hash = b"not-a-real-hash"
-
     with pytest.raises(NotSaved):
-        user_manager.new(username, email, password_hash)
+        user_manager.new(valid_username, valid_email, valid_password_hash)
 
     assert user_manager.engine.save.call_count == 3
     expected_user = User(
-        password_hash=password_hash, email=email,
+        password_hash=valid_password_hash, email=valid_email,
         verification_code=has_type(uuid.UUID), user_id=has_type(uuid.UUID))
     user_manager.engine.save.assert_any_call(expected_user, condition=User.user_id.is_(None))
 
 
 def test_new_user_success(user_manager):
     """after UserName is created, a new user is created with a random user_id."""
-    username = "username"
-    email = "email@domain.com"
-    password_hash = b"not-a-real-hash"
+    returned_user = user_manager.new(valid_username, valid_email, valid_password_hash)
 
-    returned_user = user_manager.new(username, email, password_hash)
-
-    expected_username = UserName(username=username, created=near(arrow.now(), seconds=2), user_id=has_type(uuid.UUID))
+    expected_username = UserName(
+        username=valid_username,
+        created=near(arrow.now(), seconds=2),
+        user_id=has_type(uuid.UUID))
     expected_user = User(
-        password_hash=password_hash, email=email,
+        password_hash=valid_password_hash,
+        email=valid_email,
         verification_code=has_type(uuid.UUID),
         user_id=has_type(uuid.UUID))
     # username saved without user_id

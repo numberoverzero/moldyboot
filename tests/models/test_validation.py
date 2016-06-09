@@ -1,3 +1,4 @@
+import bcrypt
 import base64
 import pytest
 import uuid
@@ -136,3 +137,25 @@ def test_invalid_public_key(rsa_pub):
         with pytest.raises(InvalidParameter) as excinfo:
             validate("public_key", invalid_key)
         assert "public_key" == excinfo.value.parameter_name
+
+
+def test_valid_password_hash():
+    hash = bcrypt.hashpw(b"hunter2", bcrypt.gensalt(4))
+    assert hash == validate("password_hash", hash)
+    assert hash == validate("password_hash", hash.decode("utf-8"))
+
+
+def test_invalid_password_hash():
+    invalid_hashes = [
+        "$2a$06$" + "a"*53,  # Wrong type (2a, not 2b)
+        "$2b$aa$" + "a"*53,  # rounds must be decimals
+        "$2b$06$" + "a"*52,  # Wrong salt+hash length
+        "$2b$o6$" + "a"*54,  # Wrong salt+hash length
+        "$2b$o6$" + "?"*53,  # Invalid base64 character
+        "$2b$o6$" + "+"*53,  # Nonstandard b64 doesn't include +
+    ]
+
+    for invalid_hash in invalid_hashes:
+        with pytest.raises(InvalidParameter) as excinfo:
+            validate("password_hash", invalid_hash)
+        assert "password_hash" == excinfo.value.parameter_name
