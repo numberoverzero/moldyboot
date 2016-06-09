@@ -1,5 +1,6 @@
 import pytest
-from gaas.resources import _allowed_tags, get_metadata, has_tag, require_signed_header, store_metadata, tag
+
+from gaas.resources.meta import _allowed_tags, get_metadata, has_tag, require_signed_header, store_metadata, tag
 
 
 @pytest.yield_fixture(autouse=True)

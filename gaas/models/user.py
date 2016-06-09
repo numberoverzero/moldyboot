@@ -1,8 +1,10 @@
 import arrow
 import bloop
 import uuid
-from bloop import Column, UUID, DateTime, String, ConstraintViolation, Binary
-from . import BaseModel, NotFound, NotSaved, AlreadyExists, persist_unique
+
+from bloop import Binary, Column, ConstraintViolation, DateTime, String, UUID
+
+from .common import AlreadyExists, BaseModel, NotFound, NotSaved, persist_unique
 from .validation import validate
 
 

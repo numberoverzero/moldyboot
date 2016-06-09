@@ -1,13 +1,14 @@
-from gaas.models import NotFound, NotSaved
-from gaas.models.key import PublicKeyType, Key
-from gaas.models.validation import InvalidParameter
-
 import arrow
 import base64
 import bloop
 import pytest
 import uuid
+
 from roughly import near, has_type
+
+from gaas.models import NotFound, NotSaved
+from gaas.models.key import Key, PublicKeyType
+from gaas.models.validation import InvalidParameter
 
 
 def test_key_type(rsa_pub):

@@ -1,10 +1,11 @@
 import arrow
 import base64
 import uritools
-from typing import Sequence, Dict, Optional
+
+from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_PSS
-from Crypto.Hash import SHA256
+from typing import Sequence, Dict, Optional
 
 __all__ = ["sign", "verify"]
 

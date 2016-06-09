@@ -1,12 +1,12 @@
 import falcon
 import json
 
-from gaas.security import signatures, passwords
-from .resources import has_tag, get_metadata
 from .models import NotFound
 from .models.key import KeyManager
 from .models.user import UserManager
-from .models.validation import validate, InvalidParameter
+from .models.validation import InvalidParameter, validate
+from .resources import get_metadata, has_tag
+from .security import passwords, signatures
 
 
 def lowercase_headers(headers):

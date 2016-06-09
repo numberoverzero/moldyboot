@@ -1,11 +1,11 @@
+import arrow
 import base64
+import pytest
 import re
 
-import arrow
-import pytest
 from Crypto.Hash import SHA256
 
-from gaas.security.signatures import sign, verify, BadSignature
+from gaas.security.signatures import BadSignature, sign, verify
 
 PATH = "/some/path/?query=string&another=value"
 SIGNATURE_PATTERN = re.compile(

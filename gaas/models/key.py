@@ -1,11 +1,12 @@
 import arrow
 import bloop
 import uuid
-from bloop import Column, UUID, DateTime, Binary
+
+from bloop import Binary, Column, DateTime, UUID
 from Crypto.PublicKey import RSA
 from typing import Union
 
-from . import persist_unique, BaseModel, NotFound
+from .common import persist_unique, BaseModel, NotFound
 from .validation import validate
 
 

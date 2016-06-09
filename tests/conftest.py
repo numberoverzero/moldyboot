@@ -1,11 +1,13 @@
 import bloop
+import pytest
+
+from Crypto.PublicKey import RSA
+from unittest.mock import Mock
+
+import gaas.middleware
 import gaas.models
 import gaas.models.key
 import gaas.models.user
-import gaas.middleware
-import pytest
-from unittest.mock import Mock
-from Crypto.PublicKey import RSA
 
 
 @pytest.fixture(scope="session")

@@ -1,8 +1,9 @@
-import bcrypt
 import base64
+import bcrypt
 import pytest
 import uuid
-from gaas.models.validation import validate, InvalidParameter
+
+from gaas.models.validation import InvalidParameter, validate
 
 
 valid_uuids = [

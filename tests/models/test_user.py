@@ -1,13 +1,14 @@
-from gaas.models import AlreadyExists, NotSaved, NotFound
-from gaas.models.validation import InvalidParameter
-from gaas.models.user import UserName, User
-
 import arrow
 import bcrypt
 import bloop
 import pytest
 import uuid
-from roughly import near, has_type
+
+from roughly import has_type, near
+
+from gaas.models import AlreadyExists, NotFound, NotSaved
+from gaas.models.validation import InvalidParameter
+from gaas.models.user import User, UserName
 
 valid_username = "abc"
 valid_email = "a@b"

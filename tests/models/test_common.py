@@ -1,6 +1,7 @@
 import pytest
-from bloop import new_base, Column, Integer, ConstraintViolation
-from gaas.models import persist_unique, _missing, NotSaved
+
+from bloop import Column, Integer, ConstraintViolation, new_base
+from gaas.models.common import NotSaved, _missing, persist_unique
 
 
 @pytest.fixture
