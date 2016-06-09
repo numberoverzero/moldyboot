@@ -88,6 +88,8 @@ validators["username"] = _validate_username
 
 
 def _validate_public(public):
+    if isinstance(public, RSA._RSAobj):
+        return Result.of(public.publickey())
     try:
         return Result.of(RSA.importKey(public))
     except (ValueError, IndexError, TypeError):

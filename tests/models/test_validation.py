@@ -112,6 +112,7 @@ def test_invalid_username(invalid_username):
 
 def test_valid_public_key(rsa_pub):
     valid_keys = [
+        rsa_pub,
         rsa_pub.exportKey("DER"),
         rsa_pub.exportKey("PEM"),
         rsa_pub.exportKey("PEM").decode("utf-8")
