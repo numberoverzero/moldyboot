@@ -38,7 +38,7 @@ class UserManager:
     def __init__(self, engine: bloop.Engine):
         self.engine = engine
 
-    def new_user(self, username: str, email: str, password_hash: str):
+    def new(self, username: str, email: str, password_hash: str):
         # 1) Try to reserve username
         # 2) Try to create unique user_id
         # 3) Store user_id on username
