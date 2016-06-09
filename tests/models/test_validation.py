@@ -1,3 +1,4 @@
+import base64
 import pytest
 import uuid
 from gaas.models.validation import validate, InvalidParameter
@@ -107,3 +108,30 @@ def test_invalid_username(invalid_username):
     with pytest.raises(InvalidParameter) as excinfo:
         validate("username", invalid_username)
     assert "username" == excinfo.value.parameter_name
+
+
+def test_valid_public_key(rsa_pub):
+    valid_keys = [
+        rsa_pub.exportKey("DER"),
+        rsa_pub.exportKey("PEM"),
+        rsa_pub.exportKey("PEM").decode("utf-8")
+    ]
+    for valid_key in valid_keys:
+        assert validate("public_key", valid_key) == rsa_pub
+
+
+def test_invalid_public_key(rsa_pub):
+    # base64 of DER encoding fails (just use PEM)
+    encoded_bytes = base64.b64encode(rsa_pub.exportKey("DER"))
+
+    invalid_keys = [
+        encoded_bytes,
+        encoded_bytes.decode("utf-8"),  # as string
+        "",
+        b""
+    ]
+
+    for invalid_key in invalid_keys:
+        with pytest.raises(InvalidParameter) as excinfo:
+            validate("public_key", invalid_key)
+        assert "public_key" == excinfo.value.parameter_name

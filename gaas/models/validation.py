@@ -1,5 +1,7 @@
 import re
 import uuid
+from Crypto.PublicKey import RSA
+
 validators = {}
 __all__ = ["validate", "InvalidParameter"]
 
@@ -83,3 +85,11 @@ def _validate_username(username):
         return Result.error("must start with a letter; only letters and digits; between 3 and 16 characters long")
     return Result.of(username)
 validators["username"] = _validate_username
+
+
+def _validate_public(public):
+    try:
+        return Result.of(RSA.importKey(public))
+    except (ValueError, IndexError, TypeError):
+        return Result.error("invalid format")
+validators["public_key"] = _validate_public
