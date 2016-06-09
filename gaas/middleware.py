@@ -1,8 +1,9 @@
 import falcon
 
-from gaas.security.signing import verify, BadSignature
+from gaas.security import signatures, passwords
 from .models import NotFound
 from .models.key import KeyManager
+from .models.user import UserManager
 from .models.validation import validate, InvalidParameter
 
 
@@ -14,7 +15,7 @@ def fail(message):
     raise falcon.HTTPUnauthorized("Authentication failed", message, None)
 
 
-def authenticate_signature(method, path, headers, body, headers_to_sign, key_manager):
+def authenticate_signature(method, path, headers, body, headers_to_sign, key_manager: KeyManager):
 
     # 1) Check authorization header format
     if "authorization" not in headers:
@@ -42,21 +43,37 @@ def authenticate_signature(method, path, headers, body, headers_to_sign, key_man
 
     # 4) Check signature
     try:
-        verify(
+        signatures.verify(
             method, path, headers, body,
             key.public, authentication["signature"],
             authentication["headers"].split(" "),
             headers_to_sign)
-    except BadSignature as exception:
+    except signatures.BadSignature as exception:
         fail("Signature validation failed: {}".format(exception.args[0]))
 
     # Success!  Let callers know who was just authenticated
     return key
 
 
+def authenticate_password(username, password, user_manager: UserManager):
+    # 1) Check that user exists
+    try:
+        user = user_manager.load_by_name(username)
+    except NotFound:
+        fail("Invalid user/password")
+    # 2) Compare passwords
+    try:
+        passwords.check(password, user.password_hash)
+    except passwords.BadPassword:
+        fail("Invalid user/password")
+    # Success! Return user_id of the user that just authenticated
+    return user.user_id
+
+
 class Authentication:
-    def __init__(self, key_manager: KeyManager):
+    def __init__(self, key_manager: KeyManager, user_manager: UserManager):
         self.key_manager = key_manager
+        self.user_manager = user_manager
 
     def process_resource(self, req: falcon.Request, resp: falcon.Response, resource, params):
         method = req.method

@@ -54,5 +54,10 @@ def user_manager(mock_engine):
 
 
 @pytest.fixture
-def authentication_middleware(mock_key_manager):
-    return gaas.middleware.Authentication(mock_key_manager)
+def mock_user_manager():
+    return Mock(spec=gaas.models.user.UserManager)
+
+
+@pytest.fixture
+def authentication_middleware(mock_key_manager, mock_user_manager):
+    return gaas.middleware.Authentication(mock_key_manager, mock_user_manager)

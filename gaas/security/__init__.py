@@ -1,4 +1,4 @@
-from . import signing
-from . import password
+from . import signatures
+from . import passwords
 
-__all__ = ["signing", "password"]
+__all__ = ["signatures", "passwords"]

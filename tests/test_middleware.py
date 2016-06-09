@@ -11,7 +11,7 @@ from Crypto.Hash import SHA256
 from gaas.middleware import authenticate_signature
 from gaas.models import NotFound
 from gaas.models.key import Key
-from gaas.security.signing import sign
+from gaas.security.signatures import sign
 
 SIGNATURE_MISMATCH_MESSAGE = (
     'Authorization header did not match required pattern '

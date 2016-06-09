@@ -1,7 +1,7 @@
 import bcrypt
 import pytest
 
-from gaas.security.password import hash, check, BadPassword
+from gaas.security.passwords import hash, check, BadPassword
 
 
 def test_hash_small_rounds():

@@ -5,7 +5,7 @@ import arrow
 import pytest
 from Crypto.Hash import SHA256
 
-from gaas.security.signing import sign, verify, BadSignature
+from gaas.security.signatures import sign, verify, BadSignature
 
 PATH = "/some/path/?query=string&another=value"
 SIGNATURE_PATTERN = re.compile(
