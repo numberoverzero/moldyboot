@@ -1,16 +1,18 @@
-import arrow
 import base64
+import uuid
+
+import arrow
 import falcon
 import falcon.testing
+import helpers
 import pytest
-import uuid
 from Crypto.Hash import SHA256
 
+from gaas.middleware import authenticate_signature
 from gaas.models import NotFound
 from gaas.models.key import Key
-from gaas.middleware import authenticate
-from gaas.signing import sign
-import helpers
+from gaas.security.signing import sign
+
 SIGNATURE_MISMATCH_MESSAGE = (
     'Authorization header did not match required pattern '
     '^Signature headers="([^"]*)" id="([^@"]*)@([^"]*)" signature="([^"]*)"$')
@@ -47,7 +49,7 @@ def test_authenticate_no_auth_header(valid_request, mock_key_manager):
     method, path, body, headers, *_ = valid_request
     del headers["authorization"]
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate(method, path, headers, body, [], mock_key_manager)
+        authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Must provide 'authorization' header" == excinfo.value.description
     mock_key_manager.assert_not_called()
 
@@ -56,7 +58,7 @@ def test_authenticate_invalid_auth_header(valid_request, mock_key_manager):
     method, path, body, headers, *_ = valid_request
     headers["authorization"] = headers["authorization"].replace("Signature", "Invalid")
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate(method, path, headers, body, [], mock_key_manager)
+        authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert SIGNATURE_MISMATCH_MESSAGE == excinfo.value.description
     mock_key_manager.assert_not_called()
 
@@ -74,7 +76,7 @@ def test_authenticate_invalid_id_format(rsa_priv, mock_key_manager):
     sign(method, path, headers, body, rsa_priv, key_id)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate(method, path, headers, body, [], mock_key_manager)
+        authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert SIGNATURE_MISMATCH_MESSAGE == excinfo.value.description
     mock_key_manager.assert_not_called()
 
@@ -92,7 +94,7 @@ def test_authenticate_invalid_user_id(rsa_priv, mock_key_manager):
     sign(method, path, headers, body, rsa_priv, key_id)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate(method, path, headers, body, [], mock_key_manager)
+        authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Authorization USER must be a UUID" == excinfo.value.description
     mock_key_manager.assert_not_called()
 
@@ -110,7 +112,7 @@ def test_authenticate_invalid_key_id(rsa_priv, mock_key_manager):
     sign(method, path, headers, body, rsa_priv, key_id)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate(method, path, headers, body, [], mock_key_manager)
+        authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Authorization KEYID must be a UUID" == excinfo.value.description
     mock_key_manager.assert_not_called()
 
@@ -123,7 +125,7 @@ def test_authenticate_key_missing_or_expired(valid_request, mock_key_manager):
     mock_key_manager.load.side_effect = load
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate(method, path, headers, body, [], mock_key_manager)
+        authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Unknown USER, KEYID ({}, {})".format(user_id, key_id) == excinfo.value.description
     mock_key_manager.load.assert_called_once_with(user_id, key_id)
 
@@ -136,7 +138,7 @@ def test_authenticate_invalid_signature(generate_key, valid_request, mock_key_ma
     mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=wrong_public)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate(method, path, headers, body, [], mock_key_manager)
+        authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Signature validation failed:" in excinfo.value.description
     mock_key_manager.load.assert_called_once_with(user_id, key_id)
 
@@ -144,10 +146,11 @@ def test_authenticate_invalid_signature(generate_key, valid_request, mock_key_ma
 def test_authenticate_success(rsa_pub, valid_request, mock_key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
-    mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
+    key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
+    mock_key_manager.load.return_value = key
 
-    authenticated_user_id = authenticate(method, path, headers, body, [], mock_key_manager)
-    assert authenticated_user_id == user_id
+    actual_key = authenticate_signature(method, path, headers, body, [], mock_key_manager)
+    assert actual_key == key
     mock_key_manager.load.assert_called_once_with(user_id, key_id)
 
 
@@ -168,7 +171,8 @@ def test_authentication_middleware_success(rsa_priv, rsa_pub, authentication_mid
     sign(method, path, headers, body, rsa_priv, id)
     # Build wsgi env from signed request, patch key loading
     env = helpers.build_env(method, path, headers, body)
-    mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
+    key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
+    mock_key_manager.load.return_value = key
 
     # Build the api
     api = falcon.API(middleware=[authentication_middleware])
@@ -179,7 +183,7 @@ def test_authentication_middleware_success(rsa_priv, rsa_pub, authentication_mid
     # Execute the test
     api(env, mock_response)
     assert mock_response.status == "200 TEST OK"
-    assert resource.captured_req.context["user_id"] == user_id
+    assert resource.captured_req.context["authentication"] == {"key": key, "user": user_id}
 
 
 def test_authentication_middleware_failure(rsa_pub, authentication_middleware, mock_key_manager):

@@ -1,8 +1,9 @@
 import falcon
+
+from gaas.security.signing import verify, BadSignature
 from .models import NotFound
 from .models.key import KeyManager
 from .models.validation import validate, InvalidParameter
-from .signing import verify, BadSignature
 
 
 def lowercase_headers(headers):
@@ -13,7 +14,7 @@ def fail(message):
     raise falcon.HTTPUnauthorized("Authentication failed", message, None)
 
 
-def authenticate(method, path, headers, body, headers_to_sign, key_manager):
+def authenticate_signature(method, path, headers, body, headers_to_sign, key_manager):
 
     # 1) Check authorization header format
     if "authorization" not in headers:
@@ -50,7 +51,7 @@ def authenticate(method, path, headers, body, headers_to_sign, key_manager):
         fail("Signature validation failed: {}".format(exception.args[0]))
 
     # Success!  Let callers know who was just authenticated
-    return key.user_id
+    return key
 
 
 class Authentication:
@@ -66,8 +67,9 @@ class Authentication:
             path += "?" + req.query_string
         headers = lowercase_headers(req.headers)
         body = req.stream.read().decode("utf-8")
-        additional_headers_to_sign = getattr(resource, "signed_headers", [])
 
-        # TODO try/catch if the resource allows Basic Authorization and retry authentication
-        authenticated_user = authenticate(method, path, headers, body, additional_headers_to_sign, self.key_manager)
-        req.context["user_id"] = authenticated_user
+        # Stored on the resource as {method: [headers]}
+        additional_headers_to_sign = getattr(resource, "signed_headers", {})
+        additional_headers_to_sign = additional_headers_to_sign.get(method.lower(), [])
+        key = authenticate_signature(method, path, headers, body, additional_headers_to_sign, self.key_manager)
+        req.context["authentication"] = {"key": key, "user": key.user_id}
