@@ -1,5 +1,5 @@
 import pytest
-from gaas.resources import tag, has_tag, _allowed_tags
+from gaas.resources import _allowed_tags, get_metadata, has_tag, require_signed_header, store_metadata, tag
 
 
 @pytest.yield_fixture(autouse=True)
@@ -16,10 +16,50 @@ def allow_tag():
     yield add_tag
 
     try:
-        for tag in testing_tags:
-            _allowed_tags.remove(tag)
+        for test_tag in testing_tags:
+            _allowed_tags.remove(test_tag)
     except KeyError:
         pass
+
+
+def test_get_metadata_unknown():
+    class Resource:
+        def on_get(self):
+            pass
+    resource = Resource()
+    with pytest.raises(ValueError):
+        get_metadata(resource, "get", "unknown-metadata")
+
+
+def test_get_metadata_tags():
+    class Resource:
+        def on_get(self):
+            pass
+    resource = Resource()
+    with pytest.raises(AttributeError):
+        get_metadata(resource, "get", "_tags")
+
+
+def test_store_metadata_unknown():
+    class Resource:
+        def on_get(self):
+            pass
+
+    with pytest.raises(ValueError):
+        store_metadata(Resource.on_get, "unknown-metadata", set())
+
+
+def test_store_metadata_exists():
+    class Resource:
+        def on_get(self):
+            pass
+
+    first = object()
+    second = object()
+    assert store_metadata(Resource.on_get, "_tags", first) is first
+    assert store_metadata(Resource.on_get, "_tags", second) is first
+    resource = Resource()
+    assert get_metadata(resource, "get", "_tags") is first
 
 
 def test_tag_unknown():
@@ -69,3 +109,12 @@ def test_has_tag():
     assert has_tag(resource, "post", "test")
     assert not has_tag(resource, "post", "unknown")
     assert not has_tag(resource, "get", "test")
+
+
+def test_require_signed_header():
+    class Resource:
+        @require_signed_header("some-header")
+        def on_post(self):
+            pass
+    resource = Resource()
+    assert "some-header" in get_metadata(resource, "POST", "_additional_signed_headers")
