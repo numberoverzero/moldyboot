@@ -11,6 +11,7 @@ import helpers
 from Crypto.Hash import SHA256
 
 from gaas.middleware.authentication import authenticate_password, authenticate_signature
+from gaas.middleware.translate_json import TranslateJSON
 from gaas.models import NotFound
 from gaas.models.key import Key
 from gaas.models.user import User
@@ -213,7 +214,7 @@ def test_authentication_middleware_bypass(authentication_middleware):
             return falcon.HTTP_200
     resource = Resource()
 
-    api = falcon.API(middleware=[authentication_middleware])
+    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/bypass", resource)
     env = helpers.build_env("get", "/bypass", dict(), "")
     response = falcon.testing.StartResponseMock()
@@ -237,7 +238,7 @@ def test_authentication_middleware_basic_success(authentication_middleware, mock
             return falcon.HTTP_200
     resource = Resource()
 
-    api = falcon.API(middleware=[authentication_middleware])
+    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/basic", resource)
     env = helpers.build_env("get", "/basic", dict(), json.dumps({"username": username, "password": password}))
     response = falcon.testing.StartResponseMock()
@@ -260,7 +261,7 @@ def test_authentication_middleware_basic_no_username(authentication_middleware, 
             return falcon.HTTP_200
     resource = Resource()
 
-    api = falcon.API(middleware=[authentication_middleware])
+    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/basic", resource)
     env = helpers.build_env("get", "/basic", dict(), json.dumps({"password": password}))
     response = falcon.testing.StartResponseMock()
@@ -285,7 +286,7 @@ def test_authentication_middleware_basic_no_password(authentication_middleware, 
             return falcon.HTTP_200
     resource = Resource()
 
-    api = falcon.API(middleware=[authentication_middleware])
+    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/basic", resource)
     env = helpers.build_env("get", "/basic", dict(), json.dumps({"username": username}))
     response = falcon.testing.StartResponseMock()
@@ -316,7 +317,7 @@ def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, authenti
     mock_key_manager.load.return_value = key
 
     # Build the api
-    api = falcon.API(middleware=[authentication_middleware])
+    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     resource = helpers.MockResource(status="200 TEST OK")
     mock_response = falcon.testing.StartResponseMock()
     api.add_route("/some/path", resource)
@@ -345,7 +346,7 @@ def test_authentication_middleware_signature_failure(rsa_pub, authentication_mid
     mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
 
     # Build the api
-    api = falcon.API(middleware=[authentication_middleware])
+    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     resource = helpers.MockResource(status="200 TEST OK")
     response = falcon.testing.StartResponseMock()
     api.add_route("/some/path", resource)

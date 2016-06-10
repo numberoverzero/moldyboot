@@ -1,5 +1,4 @@
 import falcon
-import json
 
 from .meta import tag
 from ..models import NotSaved
@@ -30,8 +29,7 @@ class Keys:
     def on_post(self, req: falcon.Request, resp: falcon.Response):
         """User logged in with username/password, persist the provided public key and return its id"""
         # TODO move json loading to middleware
-        body_str = req.stream.read().decode("utf-8")
-        body = json.loads(body_str)
+        body = req.context["body"].json
         try:
             public_key = body["public_key"]
         except KeyError:
@@ -46,5 +44,5 @@ class Keys:
             key = self.key_manager.new(user_id, public_key)
         except NotSaved:
             raise falcon.HTTPInternalServerError("Internal Server Error", "Please retry authentication")
-        resp.body = json.dumps({"key_id": str(key.key_id), "until": key.until.isoformat()})
+        req.context["response"] = {"key_id": str(key.key_id), "until": key.until.isoformat()}
         resp.status = falcon.HTTP_200

@@ -36,13 +36,13 @@ def test_single_read():
 
 def test_empty_body():
     body = BodyWrapper(stream(""))
-    assert str(body) == ""
+    assert body.str == ""
     assert body.json == dict()
 
 
 def test_empty_json():
     body = BodyWrapper(stream(json.dumps({})))
-    assert str(body) == "{}"
+    assert body.str == "{}"
     assert body.json == dict()
 
 
@@ -50,10 +50,17 @@ def test_not_json():
     body = BodyWrapper(stream("not json"))
 
     # We're fine as long as we never inspect it as json
-    assert str(body) == "not json"
+    assert body.str == "not json"
 
     with pytest.raises(ValueError):
         body.json
+
+
+def test_magic_str_raises():
+    """Because __str__ is ambiguous (did you want the dumped json?  not equal for an empty string; refuse to guess"""
+    body = BodyWrapper(stream(json.dumps({"key": "value"})))
+    with pytest.raises(AttributeError):
+        str(body)
 
 
 def test_json_middleware():

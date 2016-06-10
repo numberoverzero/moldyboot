@@ -18,7 +18,7 @@ class BodyWrapper:
         self._json = None
 
     def __str__(self):
-        return self._body
+        raise AttributeError("Ambiguous, use BodyWrapper.str or BodyWrapper.json")
 
     @property
     def json(self):
@@ -28,3 +28,7 @@ class BodyWrapper:
             else:
                 self._json = json.loads(self._body)
         return self._json
+
+    @property
+    def str(self):
+        return self._body

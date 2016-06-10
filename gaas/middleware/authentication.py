@@ -1,5 +1,4 @@
 import falcon
-import json
 
 from gaas.models import NotFound
 from gaas.models.key import KeyManager
@@ -95,8 +94,7 @@ class Authentication:
             self._signature_auth(req, resource)
 
     def _basic_auth(self, req: falcon.Request):
-        # TODO move json loading to different middleware
-        body = json.loads(req.stream.read().decode("utf-8"))
+        body = req.context["body"].json
         try:
             username = body["username"]
         except KeyError:
@@ -116,7 +114,7 @@ class Authentication:
         if req.query_string:
             path += "?" + req.query_string
         headers = lowercase_headers(req.headers)
-        body = req.stream.read().decode("utf-8")
+        body = req.context["body"].str
 
         # Added with @resources.require_signed_header("some-header")
         try:
