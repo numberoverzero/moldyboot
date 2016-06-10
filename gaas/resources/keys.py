@@ -16,7 +16,7 @@ class Keys:
         user_id = str(authenticated_info["user"])
         public_key = authenticated_info["key"].public
         public_key = public_key.exportKey(format="PEM").decode("utf-8")
-        resp.body = json.dumps({"user_id": user_id, "public_key": public_key})
+        req.context["response"] = {"user_id": user_id, "public_key": public_key}
         resp.status = falcon.HTTP_200
 
     def on_delete(self, req: falcon.Request, resp: falcon.Response):
