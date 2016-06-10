@@ -10,7 +10,7 @@ import helpers
 
 from Crypto.Hash import SHA256
 
-from gaas.middleware import authenticate_password, authenticate_signature
+from gaas.middleware.authentication import authenticate_password, authenticate_signature
 from gaas.models import NotFound
 from gaas.models.key import Key
 from gaas.models.user import User
