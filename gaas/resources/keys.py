@@ -10,11 +10,8 @@ class Keys:
 
     def on_get(self, req: falcon.Request, resp: falcon.Response):
         """Caller passed authentication, return the public key their signature passed with"""
-        authenticated_info = req.context["authentication"]
-        user_id = str(authenticated_info["user_id"])
-        public_key = authenticated_info["key"].public
-        public_key = public_key.exportKey(format="PEM").decode("utf-8")
-        req.context["response"] = {"user_id": user_id, "public_key": public_key}
+        public_key = req.context["authentication"]["key"].public.exportKey(format="PEM").decode("utf-8")
+        req.context["response"] = {"public_key": public_key}
         resp.status = falcon.HTTP_200
 
     def on_delete(self, req: falcon.Request, resp: falcon.Response):
@@ -38,7 +35,7 @@ class Keys:
         except InvalidParameter:
             raise falcon.HTTPBadRequest("Invalid parameter", "Expected public key in PEM format.")
         except NotSaved:
-            raise falcon.HTTPInternalServerError("Internal Server Error", "Please retry authentication")
+            raise falcon.HTTPInternalServerError("Internal Server Error", "Failed to store public key")
 
         req.context["response"] = {"key_id": "{}@{}".format(user_id, key.key_id)}
         resp.status = falcon.HTTP_200
