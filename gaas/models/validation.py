@@ -65,6 +65,7 @@ def _validate_uuid(value):
         return Result.error("must be a UUID")
 validators["user_id"] = _validate_uuid
 validators["key_id"] = _validate_uuid
+validators["verification_code"] = _validate_uuid
 
 
 def _validate_authorization_header(signature):

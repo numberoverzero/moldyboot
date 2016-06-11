@@ -83,9 +83,19 @@ class UserManager:
             raise NotFound
         return self.load_by_id(username.user_id)
 
-    def verify(self, user: User):
-        user.verification_code = None
-        try:
-            self.engine.save(user, atomic=True)
-        except ConstraintViolation:
+    def verify(self, user: User, verification_code: str):
+        code = validate("verification_code", verification_code)
+        actual_code = getattr(user, "verification_code", None)
+        # User already verified, nothing to do
+        if actual_code is None:
+            return
+        # Try to clear the verification code
+        elif code == actual_code:
+            try:
+                user.verification_code = None
+                self.engine.save(user, atomic=True)
+            except ConstraintViolation:
+                raise NotSaved(user)
+        # User has verification code, doesn't match the one we're trying to use
+        else:
             raise NotSaved(user)

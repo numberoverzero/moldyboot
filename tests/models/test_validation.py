@@ -50,7 +50,7 @@ def test_validate_unknown_parameter():
         validate("not a real parameter name", "unused value")
 
 
-@pytest.mark.parametrize("parameter_name", ["user_id", "key_id"])
+@pytest.mark.parametrize("parameter_name", ["user_id", "key_id", "verification_code"])
 @pytest.mark.parametrize("valid_uuid", valid_uuids)
 def test_valid_uuid(parameter_name, valid_uuid):
     same = validate(parameter_name, valid_uuid)
