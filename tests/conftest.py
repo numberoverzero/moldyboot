@@ -13,26 +13,17 @@ import gaas.models.user
 @pytest.fixture(scope="session")
 def generate_key():
     """Returns a function for generating keys"""
-    def _generate_key(bits=1024):
-        """Returns private, public"""
-        pair = RSA.generate(bits)
-        return pair, pair.publickey()
-    return _generate_key
+    return lambda bits=1024: RSA.generate(bits)
 
 
 @pytest.fixture(scope="session")
-def rsa_pair(generate_key):
+def rsa_priv(generate_key):
     return generate_key()
 
 
 @pytest.fixture(scope="session")
-def rsa_priv(rsa_pair):
-    return rsa_pair[0]
-
-
-@pytest.fixture(scope="session")
-def rsa_pub(rsa_pair):
-    return rsa_pair[1]
+def rsa_pub(rsa_priv):
+    return rsa_priv.publickey()
 
 
 @pytest.fixture
@@ -46,6 +37,11 @@ def mock_key_manager():
 
 
 @pytest.fixture
+def mock_user_manager():
+    return Mock(spec=gaas.models.user.UserManager)
+
+
+@pytest.fixture
 def key_manager(mock_engine):
     return gaas.models.key.KeyManager(mock_engine)
 
@@ -53,11 +49,6 @@ def key_manager(mock_engine):
 @pytest.fixture
 def user_manager(mock_engine):
     return gaas.models.user.UserManager(mock_engine)
-
-
-@pytest.fixture
-def mock_user_manager():
-    return Mock(spec=gaas.models.user.UserManager)
 
 
 @pytest.fixture

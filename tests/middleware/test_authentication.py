@@ -139,7 +139,7 @@ def test_authenticate_signature_key_missing_or_expired(valid_request, mock_key_m
 def test_authenticate_signature_invalid_signature(generate_key, valid_request, mock_key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
-    _, wrong_public = generate_key()
+    wrong_public = generate_key().publickey()
 
     mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=wrong_public)
 
