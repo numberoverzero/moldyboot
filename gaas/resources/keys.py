@@ -44,5 +44,5 @@ class Keys:
             key = self.key_manager.new(user_id, public_key)
         except NotSaved:
             raise falcon.HTTPInternalServerError("Internal Server Error", "Please retry authentication")
-        req.context["response"] = {"key_id": str(key.key_id), "until": key.until.isoformat()}
+        req.context["response"] = {"key_id": "{}@{}".format(user_id, key.key_id)}
         resp.status = falcon.HTTP_200
