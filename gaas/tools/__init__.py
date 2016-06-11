@@ -3,9 +3,8 @@ from pathlib import Path
 
 from boto3.session import Session
 from bloop import Engine
-from gaas.models import BaseModel
-from gaas.models.user import UserManager
-from gaas.security import passwords
+from ..models import BaseModel, UserManager
+from ..security import passwords
 
 
 session = Session(profile_name="gaas-integ")

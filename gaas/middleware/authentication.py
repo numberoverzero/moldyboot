@@ -1,11 +1,8 @@
 import falcon
 
-from gaas.models import NotFound
-from gaas.models.key import KeyManager
-from gaas.models.user import UserManager
-from gaas.models.validation import InvalidParameter, validate
-from gaas.resources import get_metadata, has_tag
-from gaas.security import passwords, signatures
+from ..models import InvalidParameter, KeyManager, NotFound, UserManager, validate
+from ..resources import get_metadata, has_tag
+from ..security import passwords, signatures
 
 
 def lowercase_headers(headers):
@@ -26,23 +23,16 @@ def authenticate_signature(method, path, headers, body, headers_to_sign, key_man
     except InvalidParameter as exception:
         fail("Authorization header did not match required pattern {}".format(exception.message))
 
-    # 2) Check user_id, key_id format
-    try:
-        user_id = validate("user_id", authentication["user_id"])
-    except InvalidParameter as exception:
-        fail("Authorization USER {}".format(exception.message))
-    try:
-        key_id = validate("key_id", authentication["key_id"])
-    except InvalidParameter as exception:
-        fail("Authorization KEYID {}".format(exception.message))
-
-    # 3) Try to load public key
+    # 2) Try to load public key
+    user_id, key_id = authentication["user_id"], authentication["key_id"]
     try:
         key = key_manager.load(user_id, key_id)
+    except InvalidParameter as exception:
+        fail("{} must be a uuid but was '{}'".format(exception.parameter_name, exception.value))
     except NotFound:
         fail("Unknown USER, KEYID ({}, {})".format(user_id, key_id))
 
-    # 4) Check signature
+    # 3) Check signature
     try:
         signatures.verify(
             method, path, headers, body,
@@ -57,17 +47,12 @@ def authenticate_signature(method, path, headers, body, headers_to_sign, key_man
 
 
 def authenticate_password(username, password, user_manager: UserManager):
-    # 1) Check username (skip password; illegal values will fail the hash cmp anyway)
-    try:
-        username = validate("username", username)
-    except InvalidParameter:
-        fail("Invalid username/password")
-    # 2) Check that user exists
+    # 1) Check that user exists
     try:
         user = user_manager.load_by_name(username)
-    except NotFound:
+    except (InvalidParameter, NotFound):
         fail("Invalid username/password")
-    # 3) Compare passwords
+    # 2) Compare passwords
     try:
         passwords.check(password, user.password_hash)
     except passwords.BadPassword:

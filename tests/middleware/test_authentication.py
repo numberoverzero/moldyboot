@@ -12,9 +12,7 @@ from Crypto.Hash import SHA256
 
 from gaas.middleware.authentication import authenticate_password, authenticate_signature
 from gaas.middleware.translate_json import TranslateJSON
-from gaas.models import NotFound
-from gaas.models.key import Key
-from gaas.models.user import User
+from gaas.models import InvalidParameter, Key, NotFound, User
 from gaas.resources import tag
 from gaas.security.passwords import hash
 from gaas.security.signatures import sign
@@ -96,13 +94,15 @@ def test_authenticate_signature_invalid_user_id(rsa_priv, mock_key_manager):
         "content-length": 0,
         "x-content-sha256": sha256(body)
     }
-    key_id = "bad-format@{}".format(uuid.uuid4())
+    key_uuid = uuid.uuid4()
+    key_id = "bad-format@{}".format(key_uuid)
     sign(method, path, headers, body, rsa_priv, key_id)
+    mock_key_manager.load.side_effect = InvalidParameter("user_id", "bad-format", "test message")
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
-    assert "Authorization USER must be a UUID" == excinfo.value.description
-    mock_key_manager.assert_not_called()
+    assert "user_id must be a uuid but was 'bad-format'" == excinfo.value.description
+    mock_key_manager.load.assert_called_once_with("bad-format", str(key_uuid))
 
 
 def test_authenticate_signature_invalid_key_id(rsa_priv, mock_key_manager):
@@ -114,13 +114,15 @@ def test_authenticate_signature_invalid_key_id(rsa_priv, mock_key_manager):
         "content-length": 0,
         "x-content-sha256": sha256(body)
     }
-    key_id = "{}@bad-format".format(uuid.uuid4())
+    user_uuid = uuid.uuid4()
+    key_id = "{}@bad-format".format(user_uuid)
     sign(method, path, headers, body, rsa_priv, key_id)
+    mock_key_manager.load.side_effect = InvalidParameter("key_id", "bad-format", "test message")
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
-    assert "Authorization KEYID must be a UUID" == excinfo.value.description
-    mock_key_manager.load.assert_not_called()
+    assert "key_id must be a uuid but was 'bad-format'" == excinfo.value.description
+    mock_key_manager.load.assert_called_once_with(str(user_uuid), "bad-format")
 
 
 def test_authenticate_signature_key_missing_or_expired(valid_request, mock_key_manager):
@@ -131,7 +133,7 @@ def test_authenticate_signature_key_missing_or_expired(valid_request, mock_key_m
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Unknown USER, KEYID ({}, {})".format(user_id, key_id) == excinfo.value.description
-    mock_key_manager.load.assert_called_once_with(user_id, key_id)
+    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authenticate_signature_invalid_signature(generate_key, valid_request, mock_key_manager):
@@ -144,7 +146,7 @@ def test_authenticate_signature_invalid_signature(generate_key, valid_request, m
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Signature validation failed:" in excinfo.value.description
-    mock_key_manager.load.assert_called_once_with(user_id, key_id)
+    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authenticate_signature_success(rsa_pub, valid_request, mock_key_manager):
@@ -155,17 +157,18 @@ def test_authenticate_signature_success(rsa_pub, valid_request, mock_key_manager
 
     actual_key = authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert actual_key == key
-    mock_key_manager.load.assert_called_once_with(user_id, key_id)
+    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authenticate_password_invalid_username(mock_user_manager):
     username = "0abc"
     password = "hunter2"
+    mock_user_manager.load_by_name.side_effect = InvalidParameter("username", "0abc", "test message")
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_password(username, password, mock_user_manager)
     assert "Invalid username/password" in excinfo.value.description
-    mock_user_manager.load_by_name.assert_not_called()
+    mock_user_manager.load_by_name.assert_called_once_with(username)
 
 
 def test_authenticate_password_user_missing(mock_user_manager):

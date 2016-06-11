@@ -1,9 +1,7 @@
 import falcon
 
 from .meta import tag
-from ..models import NotSaved
-from ..models.validation import InvalidParameter
-from ..models.key import KeyManager
+from ..models import InvalidParameter, KeyManager, NotSaved
 
 
 class Keys:
