@@ -2,11 +2,10 @@ import arrow
 import base64
 import falcon
 import falcon.testing
-import json
 import pytest
 import uuid
 
-import helpers
+from helpers import MockResource, build_env
 
 from Crypto.Hash import SHA256
 
@@ -30,7 +29,7 @@ def sha256(body):
 
 def signed_env(method, path, headers, body, private_key, id):
     sign(method, path, headers, body, private_key, id)
-    return helpers.build_env(method, path, headers, body)
+    return build_env(method, path, headers, body)
 
 
 @pytest.fixture
@@ -210,6 +209,7 @@ def test_authenticate_password_success(mock_user_manager):
 
 
 def test_authentication_middleware_bypass(authentication_middleware):
+    """Resources can skip authentication with an explicit tag"""
     class Resource:
         @tag("authentication-skip")
         def on_get(self, req, resp):
@@ -219,14 +219,14 @@ def test_authentication_middleware_bypass(authentication_middleware):
 
     api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/bypass", resource)
-    env = helpers.build_env("get", "/bypass", dict(), "")
     response = falcon.testing.StartResponseMock()
 
-    response_body = api(env, response)
+    response_body = api(build_env("get", "/bypass"), response)
     assert response_body == [b"skipped auth!"]
 
 
 def test_authentication_middleware_basic_success(authentication_middleware, mock_user_manager):
+    """Resource can use (pseudo) Basic Authentication with an explicit tag"""
     username = "abcUser"
     password = "|-|unterZ"
     correct_hash = hash(password, 12)
@@ -243,10 +243,10 @@ def test_authentication_middleware_basic_success(authentication_middleware, mock
 
     api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/basic", resource)
-    env = helpers.build_env("get", "/basic", dict(), json.dumps({"username": username, "password": password}))
+    body = {"username": username, "password": password}
     response = falcon.testing.StartResponseMock()
 
-    response_body = api(env, response)
+    response_body = api(build_env("get", "/basic", body=body), response)
     assert response_body == [b"basic auth!"]
 
 
@@ -266,10 +266,9 @@ def test_authentication_middleware_basic_no_username(authentication_middleware, 
 
     api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/basic", resource)
-    env = helpers.build_env("get", "/basic", dict(), json.dumps({"password": password}))
     response = falcon.testing.StartResponseMock()
 
-    response_body = api(env, response)
+    response_body = api(build_env("get", "/basic", body={"password": password}), response)
     assert response.status == "401 Unauthorized"
     assert b"username is missing" in response_body[0]
 
@@ -291,10 +290,9 @@ def test_authentication_middleware_basic_no_password(authentication_middleware, 
 
     api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
     api.add_route("/basic", resource)
-    env = helpers.build_env("get", "/basic", dict(), json.dumps({"username": username}))
     response = falcon.testing.StartResponseMock()
 
-    response_body = api(env, response)
+    response_body = api(build_env("get", "/basic", body={"username": username}), response)
     assert response.status == "401 Unauthorized"
     assert b"password is missing" in response_body[0]
 
@@ -314,19 +312,17 @@ def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, authenti
 
     # Sign the request
     sign(method, path, headers, body, rsa_priv, id)
-    # Build wsgi env from signed request, patch key loading
-    env = helpers.build_env(method, path, headers, body)
     key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
     mock_key_manager.load.return_value = key
 
     # Build the api
     api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    resource = helpers.MockResource(status="200 TEST OK")
+    resource = MockResource(status="200 TEST OK")
     mock_response = falcon.testing.StartResponseMock()
     api.add_route("/some/path", resource)
 
     # Execute the test
-    api(env, mock_response)
+    api(build_env(method, path, headers, body), mock_response)
     assert mock_response.status == "200 TEST OK"
     assert resource.captured_req.context["authentication"] == {"key": key, "user": user_id}
 
@@ -345,17 +341,16 @@ def test_authentication_middleware_signature_failure(rsa_pub, authentication_mid
 
     # Forget to sign the request
     # Build wsgi env from unsigned request, patch key loading
-    env = helpers.build_env(method, path, headers, body)
     mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
 
     # Build the api
     api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    resource = helpers.MockResource(status="200 TEST OK")
+    resource = MockResource(status="200 TEST OK")
     response = falcon.testing.StartResponseMock()
     api.add_route("/some/path", resource)
 
     # Execute the test
-    response_body = api(env, response)
+    response_body = api(build_env(method, path, headers, body), response)
     assert response.status == "401 Unauthorized"
     assert b"Must provide 'authorization' header" in response_body[0]
     # No request was captured because the resource wasn't invoked - failed at the Authentication middleware

@@ -2,23 +2,26 @@ import falcon
 import falcon.testing
 import falcon.testing.resource
 import io
+import json
 import sys
 import uritools
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 
 def build_env(
         method: str = "GET",
         uri: str="/",
         headers: Optional[Dict[str, str]]=None,
-        body: str=""):
+        body: Optional[Union[str, Dict]]=""):
     uri = uritools.urisplit(uri)
     path = uri.path
     query = uri.query or ""
     scheme = uri.scheme or "https"
     port = uri.port or ("80" if scheme == "http" else "443")
     host = uri.host or "host-placeholder.com"
+    if isinstance(body, (list, dict)):
+        body = json.dumps(body)
     body = (body or "").encode("utf-8")
     headers = headers or {}
     env = {
