@@ -2,7 +2,7 @@ import falcon
 
 from .meta import tag
 from ..models import NotSaved
-from ..models.validation import InvalidParameter, validate
+from ..models.validation import InvalidParameter
 from ..models.key import KeyManager
 
 
@@ -28,21 +28,19 @@ class Keys:
     @tag("authentication-basic")
     def on_post(self, req: falcon.Request, resp: falcon.Response):
         """User logged in with username/password, persist the provided public key and return its id"""
-        # TODO move json loading to middleware
+        user_id = req.context["authentication"]["user"]
         body = req.context["body"].json
         try:
             public_key = body["public_key"]
         except KeyError:
             raise falcon.HTTPBadRequest("Missing required parameter", "Must provide a public key.")
         try:
-            public_key = validate("public_key", public_key)
+            key = self.key_manager.new(user_id, public_key)
+        # Can only be public_key, since user_id came from authentication
         except InvalidParameter:
             raise falcon.HTTPBadRequest("Invalid parameter", "Expected public key in PEM format.")
-
-        user_id = req.context["authentication"]["user"]
-        try:
-            key = self.key_manager.new(user_id, public_key)
         except NotSaved:
             raise falcon.HTTPInternalServerError("Internal Server Error", "Please retry authentication")
+
         req.context["response"] = {"key_id": "{}@{}".format(user_id, key.key_id)}
         resp.status = falcon.HTTP_200
