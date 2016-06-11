@@ -89,7 +89,7 @@ class Authentication:
         except KeyError:
             fail("password is missing")
         user_id = authenticate_password(username, password, self.user_manager)
-        req.context["authentication"] = {"user": user_id}
+        req.context["authentication"] = {"user_id": user_id}
 
     def _signature_auth(self, req: falcon.Request, resource):
         method = req.method
@@ -107,4 +107,4 @@ class Authentication:
         except AttributeError:
             additional_headers_to_sign = []
         key = authenticate_signature(method, path, headers, body, additional_headers_to_sign, self.key_manager)
-        req.context["authentication"] = {"key": key, "user": key.user_id}
+        req.context["authentication"] = {"key": key, "user_id": key.user_id}

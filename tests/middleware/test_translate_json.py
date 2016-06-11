@@ -1,3 +1,4 @@
+import functools
 import io
 import json
 import pytest
@@ -7,6 +8,10 @@ from helpers import request, response
 from unittest.mock import Mock
 
 from gaas.middleware.translate_json import BodyWrapper, TranslateJSON
+
+# This patch is because every other middleware/request test will want to configure req.context["body"] as if
+# TranslateJSON processed the body.  To test this middleware, though, we set inject_body_context to false.
+request = functools.partial(request, inject_body_context=False)
 
 
 def stream(string: str):

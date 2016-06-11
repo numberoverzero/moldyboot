@@ -11,7 +11,7 @@ class Keys:
     def on_get(self, req: falcon.Request, resp: falcon.Response):
         """Caller passed authentication, return the public key their signature passed with"""
         authenticated_info = req.context["authentication"]
-        user_id = str(authenticated_info["user"])
+        user_id = str(authenticated_info["user_id"])
         public_key = authenticated_info["key"].public
         public_key = public_key.exportKey(format="PEM").decode("utf-8")
         req.context["response"] = {"user_id": user_id, "public_key": public_key}
@@ -26,7 +26,7 @@ class Keys:
     @tag("authentication-basic")
     def on_post(self, req: falcon.Request, resp: falcon.Response):
         """User logged in with username/password, persist the provided public key and return its id"""
-        user_id = req.context["authentication"]["user"]
+        user_id = req.context["authentication"]["user_id"]
         body = req.context["body"].json
         try:
             public_key = body["public_key"]

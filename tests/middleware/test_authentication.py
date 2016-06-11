@@ -5,14 +5,14 @@ import falcon.testing
 import pytest
 import uuid
 
-from helpers import MockResource, build_env
+from helpers import request, response, signed_request
 
 from Crypto.Hash import SHA256
+from unittest.mock import Mock
 
-from gaas.middleware.authentication import authenticate_password, authenticate_signature
-from gaas.middleware.translate_json import TranslateJSON
+from gaas.middleware.authentication import Authentication, authenticate_password, authenticate_signature
 from gaas.models import InvalidParameter, Key, NotFound, User
-from gaas.resources import tag
+from gaas.security import passwords
 from gaas.security.passwords import hash
 from gaas.security.signatures import sign
 
@@ -27,9 +27,11 @@ def sha256(body):
     return base64.b64encode(hash).decode("utf-8")
 
 
-def signed_env(method, path, headers, body, private_key, id):
-    sign(method, path, headers, body, private_key, id)
-    return build_env(method, path, headers, body)
+def resource_with(*tags):
+    mock_resource = Mock()
+    mock_resource.on_get._tags = {*tags}
+    mock_resource.on_get._additional_signed_headers = []
+    return mock_resource
 
 
 @pytest.fixture
@@ -84,7 +86,7 @@ def test_authenticate_signature_invalid_id_format(rsa_priv, mock_key_manager):
     mock_key_manager.assert_not_called()
 
 
-def test_authenticate_signature_invalid_user_id(rsa_priv, mock_key_manager):
+def test_authenticate_signature_invalid_param(rsa_priv, mock_key_manager):
     method = "post"
     path = "/some/path?query=string"
     body = "hello world"
@@ -102,26 +104,6 @@ def test_authenticate_signature_invalid_user_id(rsa_priv, mock_key_manager):
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "user_id must be a uuid but was 'bad-format'" == excinfo.value.description
     mock_key_manager.load.assert_called_once_with("bad-format", str(key_uuid))
-
-
-def test_authenticate_signature_invalid_key_id(rsa_priv, mock_key_manager):
-    method = "post"
-    path = "/some/path?query=string"
-    body = "hello world"
-    headers = {
-        "x-date": arrow.now().to("utc").isoformat(),
-        "content-length": 0,
-        "x-content-sha256": sha256(body)
-    }
-    user_uuid = uuid.uuid4()
-    key_id = "{}@bad-format".format(user_uuid)
-    sign(method, path, headers, body, rsa_priv, key_id)
-    mock_key_manager.load.side_effect = InvalidParameter("key_id", "bad-format", "test message")
-
-    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
-        authenticate_signature(method, path, headers, body, [], mock_key_manager)
-    assert "key_id must be a uuid but was 'bad-format'" == excinfo.value.description
-    mock_key_manager.load.assert_called_once_with(str(user_uuid), "bad-format")
 
 
 def test_authenticate_signature_key_missing_or_expired(valid_request, mock_key_manager):
@@ -208,150 +190,96 @@ def test_authenticate_password_success(mock_user_manager):
     mock_user_manager.load_by_name.assert_called_once_with(username)
 
 
-def test_authentication_middleware_bypass(authentication_middleware):
+# Middleware tests start here ========================================================================================
+
+def test_authentication_middleware_bypass(mock_key_manager, mock_user_manager):
     """Resources can skip authentication with an explicit tag"""
-    class Resource:
-        @tag("authentication-skip")
-        def on_get(self, req, resp):
-            resp.data = b"skipped auth!"
-            return falcon.HTTP_200
-    resource = Resource()
+    req, resp, resource = request(), response(), resource_with("authentication-skip")
+    middleware = Authentication(mock_key_manager, mock_user_manager)
 
-    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    api.add_route("/bypass", resource)
-    response = falcon.testing.StartResponseMock()
-
-    response_body = api(build_env("get", "/bypass"), response)
-    assert response_body == [b"skipped auth!"]
+    middleware.process_resource(req, resp, resource, {})
+    mock_key_manager.assert_not_called()
+    mock_user_manager.assert_not_called()
 
 
-def test_authentication_middleware_basic_success(authentication_middleware, mock_user_manager):
+def test_authentication_middleware_basic_success(mock_key_manager, mock_user_manager):
     """Resource can use (pseudo) Basic Authentication with an explicit tag"""
-    username = "abcUser"
-    password = "|-|unterZ"
-    correct_hash = hash(password, 12)
     user_id = uuid.uuid4()
+    username, password = "abcUser", "|-|unterZ"
+    correct_hash = passwords.hash(password, 12)
+
+    req = request(body={"username": username, "password": password})
+    resp, resource = response(), resource_with("authentication-basic")
+    middleware = Authentication(mock_key_manager, mock_user_manager)
     mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
 
-    class Resource:
-        @tag("authentication-basic")
-        def on_get(self, req, resp):
-            assert req.context["authentication"] == {"user": user_id}
-            resp.data = b"basic auth!"
-            return falcon.HTTP_200
-    resource = Resource()
+    middleware.process_resource(req, resp, resource, {})
 
-    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    api.add_route("/basic", resource)
-    body = {"username": username, "password": password}
-    response = falcon.testing.StartResponseMock()
-
-    response_body = api(build_env("get", "/basic", body=body), response)
-    assert response_body == [b"basic auth!"]
+    assert req.context["authentication"] == {"user_id": user_id}
+    mock_key_manager.assert_not_called()
+    mock_user_manager.load_by_name.assert_called_once_with(username)
 
 
-def test_authentication_middleware_basic_no_username(authentication_middleware, mock_user_manager):
-    password = "|-|unterZ"
-    correct_hash = hash(password, 12)
-    user_id = uuid.uuid4()
-    mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
+def test_authentication_middleware_basic_no_username(mock_key_manager, mock_user_manager):
+    req = request(body={"password": "|-|unterZ"})
+    resp, resource = response(), resource_with("authentication-basic")
+    middleware = Authentication(mock_key_manager, mock_user_manager)
 
-    class Resource:
-        @tag("authentication-basic")
-        def on_get(self, req, resp):
-            assert req.context["authentication"] == {"user": user_id}
-            resp.data = b"basic auth!"
-            return falcon.HTTP_200
-    resource = Resource()
+    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
+        middleware.process_resource(req, resp, resource, {})
+    assert excinfo.value.description == "username is missing"
 
-    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    api.add_route("/basic", resource)
-    response = falcon.testing.StartResponseMock()
-
-    response_body = api(build_env("get", "/basic", body={"password": password}), response)
-    assert response.status == "401 Unauthorized"
-    assert b"username is missing" in response_body[0]
+    mock_key_manager.assert_not_called()
+    mock_user_manager.assert_not_called()
 
 
-def test_authentication_middleware_basic_no_password(authentication_middleware, mock_user_manager):
-    username = "abcUser"
-    password = "|-|unterZ"
-    correct_hash = hash(password, 12)
-    user_id = uuid.uuid4()
-    mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
+def test_authentication_middleware_basic_no_password(mock_key_manager, mock_user_manager):
+    req = request(body={"username": "abcUser"})
+    resp, resource = response(), resource_with("authentication-basic")
+    middleware = Authentication(mock_key_manager, mock_user_manager)
 
-    class Resource:
-        @tag("authentication-basic")
-        def on_get(self, req, resp):
-            assert req.context["authentication"] == {"user": user_id}
-            resp.data = b"basic auth!"
-            return falcon.HTTP_200
-    resource = Resource()
+    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
+        middleware.process_resource(req, resp, resource, {})
+    assert excinfo.value.description == "password is missing"
 
-    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    api.add_route("/basic", resource)
-    response = falcon.testing.StartResponseMock()
-
-    response_body = api(build_env("get", "/basic", body={"username": username}), response)
-    assert response.status == "401 Unauthorized"
-    assert b"password is missing" in response_body[0]
+    mock_key_manager.assert_not_called()
+    mock_user_manager.assert_not_called()
 
 
-def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, authentication_middleware, mock_key_manager):
-    # Build the request
-    method = "post"
-    path = "https://127.0.0.1:443/some/path?query=string"
-    body = "hello world"
-    headers = {
-        "x-date": arrow.now().to("utc").isoformat(),
-        "content-length": str(len(body)),
-        "x-content-sha256": sha256(body)
-    }
+def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, mock_key_manager, mock_user_manager):
+    # build a signed request
     user_id, key_id = uuid.uuid4(), uuid.uuid4()
     id = "{}@{}".format(user_id, key_id)
+    req = signed_request(private_key=rsa_priv, key_id=id)
 
-    # Sign the request
-    sign(method, path, headers, body, rsa_priv, id)
+    # resource w/o tags defaults to signature-based auth
+    resp, resource = response(), resource_with()
+
     key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
     mock_key_manager.load.return_value = key
 
-    # Build the api
-    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    resource = MockResource(status="200 TEST OK")
-    mock_response = falcon.testing.StartResponseMock()
-    api.add_route("/some/path", resource)
+    middleware = Authentication(mock_key_manager, mock_user_manager)
+    middleware.process_resource(req, resp, resource, {})
 
-    # Execute the test
-    api(build_env(method, path, headers, body), mock_response)
-    assert mock_response.status == "200 TEST OK"
-    assert resource.captured_req.context["authentication"] == {"key": key, "user": user_id}
+    mock_user_manager.assert_not_called()
+    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
+    assert req.context["authentication"] == {"key": key, "user_id": user_id}
 
 
-def test_authentication_middleware_signature_failure(rsa_pub, authentication_middleware, mock_key_manager):
-    # Build the request
-    method = "post"
-    path = "https://127.0.0.1:443/some/path"
-    body = "hello world"
-    headers = {
-        "x-date": arrow.now().to("utc").isoformat(),
-        "content-length": str(len(body)),
-        "x-content-sha256": sha256(body)
-    }
-    user_id, key_id = uuid.uuid4(), uuid.uuid4()
+def test_authentication_middleware_signature_failure(mock_key_manager, mock_user_manager):
+    class Resource:
+        # Implicit lack of additional headers to sign
+        def on_get(self, req, resp):
+            pass
 
-    # Forget to sign the request
-    # Build wsgi env from unsigned request, patch key loading
-    mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
+    # forget to sign the request
+    req, resp, resource = request(uri="/path?query=string"), response(), Resource()
 
-    # Build the api
-    api = falcon.API(middleware=[TranslateJSON(), authentication_middleware])
-    resource = MockResource(status="200 TEST OK")
-    response = falcon.testing.StartResponseMock()
-    api.add_route("/some/path", resource)
+    middleware = Authentication(mock_key_manager, mock_user_manager)
 
-    # Execute the test
-    response_body = api(build_env(method, path, headers, body), response)
-    assert response.status == "401 Unauthorized"
-    assert b"Must provide 'authorization' header" in response_body[0]
-    # No request was captured because the resource wasn't invoked - failed at the Authentication middleware
-    assert not hasattr(resource, "captured_req")
+    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
+        middleware.process_resource(req, resp, resource, {})
+    assert excinfo.value.description == "Must provide 'authorization' header"
+
+    mock_user_manager.assert_not_called()
+    mock_key_manager.assert_not_called()

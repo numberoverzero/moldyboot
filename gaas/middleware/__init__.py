@@ -1,4 +1,4 @@
 from .authentication import Authentication
-from .translate_json import TranslateJSON
+from .translate_json import BodyWrapper, TranslateJSON
 
-__all__ = ["Authentication", "TranslateJSON"]
+__all__ = ["Authentication", "BodyWrapper", "TranslateJSON"]
