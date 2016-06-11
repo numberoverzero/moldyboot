@@ -64,3 +64,11 @@ class MockResource(falcon.testing.SimpleTestResource):
     @falcon.before(falcon.testing.resource.set_resp_defaults)
     def on_post(self, req, resp, **kwargs):
         pass
+
+
+def request(method="GET", uri="/", headers=None, body=""):
+    return falcon.Request(build_env(method, uri, headers, body))
+
+
+def response():
+    return falcon.Response()

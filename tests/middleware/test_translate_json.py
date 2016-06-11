@@ -1,10 +1,8 @@
-import falcon
-import falcon.testing
 import io
 import json
 import pytest
 
-import helpers
+from helpers import request, response
 
 from unittest.mock import Mock
 
@@ -15,17 +13,9 @@ def stream(string: str):
     return io.BytesIO(string.encode("utf-8"))
 
 
-def bytes_json(blob: dict):
-    return json.dumps(blob).encode("utf-8")
-
-
-def env_with(string: str):
-    return helpers.build_env("get", "/path", dict(), string)
-
-
 def test_single_read():
     mock_stream = Mock(spec=io.BytesIO)
-    mock_stream.read.return_value = bytes_json({"key": "value"})
+    mock_stream.read.return_value = json.dumps({"key": "value"}).encode("utf-8")
 
     body = BodyWrapper(mock_stream)
     assert body.json == {"key": "value"}
@@ -63,28 +53,34 @@ def test_magic_str_raises():
         str(body)
 
 
-def test_json_middleware():
-    class Resource:
-        def on_get(self, req, resp):
-            blob = req.context["body"].json
-            if blob["respond_json"]:
-                req.context["response"] = {"hello": "world"}
-            else:
-                resp.body = "hello world"
-            return falcon.HTTP_200
+def test_json_middleware_req():
+    blob = {"hello": "world"}
+    req, resp = request(body=blob), response()
 
-    api = falcon.API(middleware=[TranslateJSON()])
-    api.add_route("/path", Resource())
+    middleware = TranslateJSON()
+    middleware.process_request(req, resp)
 
-    # req.context["response"] is serialized
-    env = env_with(json.dumps({"respond_json": True}))
-    response = falcon.testing.StartResponseMock()
-    response_body = api(env, response)
-    assert response_body[0] == b'''{"hello": "world"}'''
+    assert req.context["body"].str == json.dumps(blob)
+    assert req.context["body"].json == blob
 
-    # no req.context["response"] to serialize
-    env = env_with(json.dumps({"respond_json": False}))
-    response = falcon.testing.StartResponseMock()
 
-    response_body = api(env, response)
-    assert response_body[0] == b"hello world"
+def test_json_middleware_resp_json():
+    blob = {"hello": "world"}
+    middleware = TranslateJSON()
+    req, resp, resource = request(), response(), object()
+    req.context["response"] = blob
+
+    middleware.process_response(req, resp, resource)
+
+    assert resp.body == json.dumps(blob)
+
+
+def test_json_middleware_resp_empty():
+    middleware = TranslateJSON()
+    req, resp, resource = request(), response(), object()
+    resp.body = "placeholder"
+
+    middleware.process_response(req, resp, resource)
+
+    # middleware didn't modify the body since there was no "response" in the req
+    assert resp.body == "placeholder"
