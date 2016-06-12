@@ -1,7 +1,7 @@
 import falcon
+import pytest
 import uuid
 
-import pytest
 from helpers import request, response
 
 from gaas.models import InvalidParameter, Key, NotSaved
