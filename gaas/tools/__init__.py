@@ -1,14 +1,14 @@
+import bloop
+import boto3
 import json
 from pathlib import Path
 
-from boto3.session import Session
-from bloop import Engine
 from ..models import BaseModel, UserManager
 from ..security import passwords
 
 
-session = Session(profile_name="gaas-integ")
-engine = Engine(session=session)
+boto3.setup_default_session(profile_name="gaas-integ")
+engine = bloop.Engine()
 engine.bind(base=BaseModel)
 user_manager = UserManager(engine)
 
