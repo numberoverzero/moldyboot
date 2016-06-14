@@ -8,8 +8,7 @@ import sys
 from pathlib import Path
 
 from gaas.models import BaseModel
-from gaas.controllers.user import UserManager
-from gaas.controllers import AlreadyExists
+from gaas.controllers import AlreadyExists, UserManager
 from gaas.security import passwords
 
 

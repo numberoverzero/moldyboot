@@ -5,8 +5,7 @@ import falcon
 from wsgiref import simple_server
 from gaas.resources import Keys, Verifications
 from gaas.models import BaseModel
-from gaas.controllers.key import KeyManager
-from gaas.controllers.user import UserManager
+from gaas.controllers import KeyManager, UserManager
 from gaas.middleware import Authentication, TranslateJSON
 
 boto3.setup_default_session(profile_name="gaas-integ")
