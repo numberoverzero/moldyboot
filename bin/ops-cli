@@ -4,18 +4,26 @@ import bloop
 import click
 import boto3
 import json
+import redis
+import rq
 import sys
 from pathlib import Path
 
 from gaas.models import BaseModel
 from gaas.controllers import AlreadyExists, UserManager
 from gaas.security import passwords
+from gaas.tasks import Scheduler
 
 
 boto3.setup_default_session(profile_name="gaas-integ")
 engine = bloop.Engine()
 engine.bind(base=BaseModel)
-user_manager = UserManager(engine)
+
+redis_connection = redis.StrictRedis()
+queue = rq.Queue(connection=redis_connection)
+scheduler = Scheduler(queue)
+
+user_manager = UserManager(engine, scheduler)
 
 
 def load_credentials(filename):

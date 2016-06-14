@@ -21,7 +21,8 @@ def test_new_invalid_username(user_manager):
     with pytest.raises(InvalidParameter) as excinfo:
         user_manager.new(username, valid_email, valid_password_hash)
     assert excinfo.value.parameter_name == "username"
-    user_manager.engine.assert_not_called()
+    user_manager.engine.save.assert_not_called()
+    user_manager.scheduler.send_verification_email.assert_not_called()
 
 
 def test_new_invalid_password_hash(user_manager):
@@ -30,7 +31,8 @@ def test_new_invalid_password_hash(user_manager):
     with pytest.raises(InvalidParameter) as excinfo:
         user_manager.new(valid_username, valid_email, password_hash)
     assert excinfo.value.parameter_name == "password_hash"
-    user_manager.engine.assert_not_called()
+    user_manager.engine.save.assert_not_called()
+    user_manager.scheduler.send_verification_email.assert_not_called()
 
 
 def test_new_invalid_email(user_manager):
@@ -39,7 +41,8 @@ def test_new_invalid_email(user_manager):
     with pytest.raises(InvalidParameter) as excinfo:
         user_manager.new(valid_username, email, valid_password_hash)
     assert excinfo.value.parameter_name == "email"
-    user_manager.engine.assert_not_called()
+    user_manager.engine.save.assert_not_called()
+    user_manager.scheduler.send_verification_email.assert_not_called()
 
 
 def test_new_username_exists(user_manager):
@@ -50,6 +53,7 @@ def test_new_username_exists(user_manager):
     expected_username = UserName(username=valid_username, created=near(arrow.now(), seconds=2))
     expected_condition = UserName.username.is_(None)
     user_manager.engine.save.assert_called_once_with(expected_username, condition=expected_condition)
+    user_manager.scheduler.send_verification_email.assert_not_called()
 
 
 def test_new_user_associate_fails(user_manager):
@@ -63,6 +67,7 @@ def test_new_user_associate_fails(user_manager):
         password_hash=valid_password_hash, email=valid_email,
         verification_code=has_type(uuid.UUID), user_id=has_type(uuid.UUID))
     user_manager.engine.save.assert_any_call(expected_user, condition=User.user_id.is_(None))
+    user_manager.scheduler.send_verification_email.assert_not_called()
 
 
 def test_new_user_success(user_manager):
@@ -84,6 +89,7 @@ def test_new_user_success(user_manager):
     user_manager.engine.save.assert_any_call(expected_user, condition=User.user_id.is_(None))
     # last call updates the UserName with the User.user_id
     user_manager.engine.save.assert_called_with(expected_username, atomic=True)
+    user_manager.scheduler.send_verification_email.assert_called_with(valid_username)
 
     assert returned_user == expected_user
 

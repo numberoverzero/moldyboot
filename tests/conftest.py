@@ -10,6 +10,7 @@ import gaas.middleware
 import gaas.models
 import gaas.models.key
 import gaas.models.user
+import gaas.tasks
 
 
 @pytest.fixture(scope="session")
@@ -34,6 +35,11 @@ def mock_engine():
 
 
 @pytest.fixture
+def mock_scheduler():
+    return Mock(spec=gaas.tasks.Scheduler)
+
+
+@pytest.fixture
 def mock_key_manager():
     return Mock(spec=gaas.controllers.key.KeyManager)
 
@@ -49,8 +55,8 @@ def key_manager(mock_engine):
 
 
 @pytest.fixture
-def user_manager(mock_engine):
-    return gaas.controllers.user.UserManager(mock_engine)
+def user_manager(mock_engine, mock_scheduler):
+    return gaas.controllers.user.UserManager(mock_engine, mock_scheduler)
 
 
 @pytest.fixture

@@ -2,18 +2,26 @@
 import bloop
 import boto3
 import falcon
+import redis
+import rq
+
 from wsgiref import simple_server
 from gaas.resources import Keys, Verifications
 from gaas.models import BaseModel
 from gaas.controllers import KeyManager, UserManager
 from gaas.middleware import Authentication, TranslateJSON
+from gaas.tasks import Scheduler
 
 boto3.setup_default_session(profile_name="gaas-integ")
 engine = bloop.Engine()
 engine.bind(base=BaseModel)
 
+redis_connection = redis.StrictRedis()
+queue = rq.Queue(connection=redis_connection)
+scheduler = Scheduler(queue)
+
 key_manager = KeyManager(engine)
-user_manager = UserManager(engine)
+user_manager = UserManager(engine, scheduler)
 
 api = application = falcon.API(
     middleware=[

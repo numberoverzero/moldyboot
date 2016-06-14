@@ -3,8 +3,8 @@
 import boto3
 import bloop
 import logging
-
-from rq import Connection, Worker, Queue
+import redis
+import rq
 
 from gaas import controllers, models, tasks, templates
 
@@ -12,7 +12,12 @@ from gaas import controllers, models, tasks, templates
 session = boto3.session.Session(profile_name="gaas-integ")
 engine = bloop.Engine(client=bloop.Client(boto_client=session.client("dynamodb")))
 engine.bind(base=models.BaseModel)
-user_manager = controllers.UserManager(engine)
+
+redis_connection = redis.StrictRedis()
+queue = rq.Queue(connection=redis_connection)
+scheduler = tasks.Scheduler(queue)
+
+user_manager = controllers.UserManager(engine, scheduler)
 
 tasks.inject_dependencies(session=session, user_manager=user_manager, render=templates.render)
 
@@ -49,7 +54,7 @@ def retry_handler(job, *exc_info):
     return True
 
 
-with Connection():
-    worker = Worker([Queue()])
+with rq.Connection():
+    worker = rq.Worker([rq.Queue()])
     worker.push_exc_handler(retry_handler)
-    Worker.work()
+    worker.work()
