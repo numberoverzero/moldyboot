@@ -2,9 +2,9 @@ import arrow
 import bloop
 import uuid
 
-from bloop import Binary, Column, ConstraintViolation, DateTime, String, UUID
+from bloop import Binary, Column, ConstraintViolation, DateTime, GlobalSecondaryIndex, String, UUID
 
-from .common import AlreadyExists, BaseModel, NotFound, NotSaved, persist_unique
+from .common import AlreadyExists, BaseModel, NotFound, NotSaved, persist_unique, query_one
 from .validation import validate
 
 
@@ -17,6 +17,8 @@ class UserName(BaseModel):
     username = Column(String, hash_key=True, name="n")
     user_id = Column(UUID, name="u")
     created = Column(DateTime, name="c")
+
+    by_id = GlobalSecondaryIndex(hash_key="user_id")
 
 
 class User(BaseModel):
@@ -83,14 +85,18 @@ class UserManager:
             raise NotFound
         return self.load_by_id(username.user_id)
 
+    def load_username(self, user_id):
+        user_id = validate("user_id", user_id)
+        return query_one(self.engine, UserName.by_id, UserName.user_id == user_id)
+
     def verify(self, user: User, verification_code: str):
         code = validate("verification_code", verification_code)
-        actual_code = getattr(user, "verification_code", None)
+        current_code = getattr(user, "verification_code", None)
         # User already verified, nothing to do
-        if actual_code is None:
+        if current_code is None:
             return
         # Try to clear the verification code
-        elif code == actual_code:
+        elif code == current_code:
             try:
                 user.verification_code = None
                 self.engine.save(user, atomic=True)
@@ -98,4 +104,15 @@ class UserManager:
                 raise NotSaved(user)
         # User has verification code, doesn't match the one we're trying to use
         else:
+            raise NotSaved(user)
+
+    def refresh_verification(self, user: User):
+        current_code = getattr(user, "verification_code", None)
+        if current_code is None:
+            user.verification_code = None
+            return
+        user.verification_code = uuid.uuid4()
+        try:
+            self.engine.save(user, atomic=True)
+        except ConstraintViolation:
             raise NotSaved(user)

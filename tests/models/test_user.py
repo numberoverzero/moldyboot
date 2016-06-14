@@ -5,6 +5,7 @@ import pytest
 import uuid
 
 from roughly import has_type, near
+from unittest.mock import MagicMock
 
 from gaas.models import AlreadyExists, NotFound, NotSaved
 from gaas.models.validation import InvalidParameter
@@ -103,7 +104,7 @@ def test_new_user_success(user_manager):
     assert returned_user == expected_user
 
 
-def test_load_invalid_user_id(user_manager):
+def test_load_by_invalid_user_id(user_manager):
     invalid_user_id = "not a uuid"
 
     with pytest.raises(InvalidParameter) as excinfo:
@@ -112,7 +113,7 @@ def test_load_invalid_user_id(user_manager):
     user_manager.engine.save.assert_not_called()
 
 
-def test_load_unknown_user_id(user_manager):
+def test_load_by_unknown_user_id(user_manager):
     user_id = uuid.uuid4()
     expected_user = User(user_id=user_id)
     user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_user])
@@ -122,15 +123,13 @@ def test_load_unknown_user_id(user_manager):
     user_manager.engine.load.assert_called_once_with(expected_user)
 
 
-def test_load_user_id_success(user_manager):
+def test_load_by_user_id_success(user_manager):
     user_id = uuid.uuid4()
     user = user_manager.load_by_id(user_id)
     assert user.user_id == user_id
 
 
-# ==========================================
-
-def test_load_invalid_username(user_manager):
+def test_load_by_invalid_username(user_manager):
     invalid_username = "0af"
 
     with pytest.raises(InvalidParameter) as excinfo:
@@ -139,7 +138,7 @@ def test_load_invalid_username(user_manager):
     user_manager.engine.load.assert_not_called()
 
 
-def test_load_unknown_username(user_manager):
+def test_load_by_unknown_username(user_manager):
     username = "fooBar00"
     expected_username = UserName(username=username)
     user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_username])
@@ -149,7 +148,7 @@ def test_load_unknown_username(user_manager):
     user_manager.engine.load.assert_called_once_with(expected_username)
 
 
-def test_load_username_success(user_manager):
+def test_load_by_username_success(user_manager):
     username = "fooBar00"
     user_id = uuid.uuid4()
 
@@ -162,6 +161,29 @@ def test_load_username_success(user_manager):
     assert user.user_id == user_id
     user_manager.engine.load.assert_any_call(UserName(username=username, user_id=user_id))
     user_manager.engine.load.assert_any_call(User(user_id=user_id))
+
+
+def test_load_username_invalid(user_manager):
+    invalid_user_id = "not a uuid"
+
+    with pytest.raises(InvalidParameter) as excinfo:
+        user_manager.load_username(invalid_user_id)
+    assert excinfo.value.parameter_name == "user_id"
+    user_manager.engine.load.assert_not_called()
+
+
+def test_load_username_success(user_manager):
+    user_id = uuid.uuid4()
+    username = UserName(user_id=user_id)
+
+    # engine.query(...).key(...).all(...)
+    user_manager.engine.query.return_value = mock_query = MagicMock()
+    mock_query.key.return_value = mock_key = MagicMock()
+    mock_key.all.return_value = mock_all = MagicMock()
+    mock_all.__iter__.return_value = iter([username])
+
+    result = user_manager.load_username(user_id)
+    assert result == username
 
 
 def test_verify_invalid_code(user_manager):
@@ -217,3 +239,38 @@ def test_verify_wrong_code(user_manager):
         user_manager.verify(user, wrong_code)
     assert excinfo.value.obj is user
     user_manager.engine.assert_not_called()
+
+
+def test_refresh_verification_already_done(user_manager):
+    user = User(user_id=uuid.uuid4())
+
+    # Attribute not set
+    user_manager.refresh_verification(user)
+    assert user.verification_code is None
+
+    # Attribute is None
+    user_manager.refresh_verification(user)
+    assert user.verification_code is None
+
+    user_manager.engine.assert_not_called()
+
+
+def test_refresh_verification_constraint_violation(user_manager):
+    user = User(user_id=uuid.uuid4(), verification_code=uuid.uuid4())
+
+    user_manager.engine.save.side_effect = bloop.ConstraintViolation("save", user)
+    with pytest.raises(NotSaved) as excinfo:
+        user_manager.refresh_verification(user)
+
+    assert excinfo.value.obj is user
+    user_manager.engine.save.assert_called_once_with(user, atomic=True)
+
+
+def test_refresh_verification_success(user_manager):
+    old_code = uuid.uuid4()
+    user = User(user_id=uuid.uuid4(), verification_code=old_code)
+
+    user_manager.refresh_verification(user)
+
+    assert user.verification_code != old_code
+    user_manager.engine.save.assert_called_once_with(user, atomic=True)
