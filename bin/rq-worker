@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+
+import boto3
+import bloop
+
+from rq import Connection, Worker
+
+from gaas import controllers, models, tasks
+
+# Set up dependencies for tasks
+session = boto3.session.Session(profile_name="gaas-integ")
+engine = bloop.Engine(client=bloop.Client(boto_client=session.client("dynamodb")))
+engine.bind(base=models.BaseModel)
+user_manager = controllers.UserManager(engine)
+
+tasks.rq_inject_dependencies(session=session, user_manager=user_manager)
+
+with Connection():
+    Worker(["default"]).work()
