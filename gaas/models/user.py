@@ -2,9 +2,9 @@ import arrow
 import bloop
 import uuid
 
-from bloop import Binary, Column, ConstraintViolation, DateTime, GlobalSecondaryIndex, String, UUID
+from bloop import Binary, Column, ConstraintViolation, DateTime, String, UUID
 
-from .common import AlreadyExists, BaseModel, NotFound, NotSaved, persist_unique, query_one
+from .common import AlreadyExists, BaseModel, NotFound, NotSaved, persist_unique
 from .validation import validate
 
 
@@ -17,8 +17,6 @@ class UserName(BaseModel):
     username = Column(String, hash_key=True, name="n")
     user_id = Column(UUID, name="u")
     created = Column(DateTime, name="c")
-
-    by_id = GlobalSecondaryIndex(hash_key="user_id")
 
 
 class User(BaseModel):
@@ -42,7 +40,7 @@ class UserManager:
     def __init__(self, engine: bloop.Engine):
         self.engine = engine
 
-    def new(self, username: str, email: str, password_hash: str):
+    def new(self, username: str, email: str, password_hash: str) -> User:
         # 1) Validate username, email, password_hash
         username = validate("username", username)
         email = validate("email", email)
@@ -67,7 +65,7 @@ class UserManager:
             raise NotSaved(user)
         return user
 
-    def load_by_id(self, user_id):
+    def load_by_id(self, user_id) -> User:
         user_id = validate("user_id", user_id)
         user = User(user_id=user_id)
         try:
@@ -76,7 +74,7 @@ class UserManager:
             raise NotFound
         return user
 
-    def load_by_name(self, username):
+    def load_by_name(self, username) -> User:
         username = validate("username", username)
         username = UserName(username=username)
         try:
@@ -85,11 +83,7 @@ class UserManager:
             raise NotFound
         return self.load_by_id(username.user_id)
 
-    def load_username(self, user_id):
-        user_id = validate("user_id", user_id)
-        return query_one(self.engine, UserName.by_id, UserName.user_id == user_id)
-
-    def verify(self, user: User, verification_code: str):
+    def verify(self, user: User, verification_code: str) -> None:
         code = validate("verification_code", verification_code)
         current_code = getattr(user, "verification_code", None)
         # User already verified, nothing to do

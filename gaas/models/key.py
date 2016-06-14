@@ -44,7 +44,7 @@ class KeyManager:
     def __init__(self, engine: bloop.Engine):
         self.engine = engine
 
-    def new(self, user_id: Union[str, uuid.UUID], public: Union[str, bytes]):
+    def new(self, user_id: Union[str, uuid.UUID], public: Union[str, bytes]) -> Key:
         # 1) Validate user_id, public
         user_id = validate("user_id", user_id)
         public = validate("public_key", public)
@@ -53,7 +53,7 @@ class KeyManager:
         persist_unique(key, self.engine, "key_id", uuid.uuid4)
         return key
 
-    def load(self, user_id, key_id):
+    def load(self, user_id, key_id) -> Key:
         user_id = validate("user_id", user_id)
         key_id = validate("key_id", key_id)
 
@@ -69,14 +69,14 @@ class KeyManager:
             self.refresh(key)
             return key
 
-    def revoke(self, key: Key):
+    def revoke(self, key: Key) -> None:
         # TODO should push to an async task queue, not blocking
         # TODO handle bloop.ConstraintViolation
         # Atomic because it's possible someone refreshed the key just after a load, and this revoke
         # shouldn't apply. Only revoke keys that meet whatever criteria tried to clean them up initially.
         self.engine.delete(key, atomic=True)
 
-    def refresh(self, key: Key):
+    def refresh(self, key: Key) -> None:
         # TODO should push to an async task queue, not blocking
         # TODO offset should be loaded from config
         # TODO handle bloop.ConstraintViolation

@@ -5,7 +5,6 @@ import pytest
 import uuid
 
 from roughly import has_type, near
-from unittest.mock import MagicMock
 
 from gaas.models import AlreadyExists, NotFound, NotSaved
 from gaas.models.validation import InvalidParameter
@@ -161,29 +160,6 @@ def test_load_by_username_success(user_manager):
     assert user.user_id == user_id
     user_manager.engine.load.assert_any_call(UserName(username=username, user_id=user_id))
     user_manager.engine.load.assert_any_call(User(user_id=user_id))
-
-
-def test_load_username_invalid(user_manager):
-    invalid_user_id = "not a uuid"
-
-    with pytest.raises(InvalidParameter) as excinfo:
-        user_manager.load_username(invalid_user_id)
-    assert excinfo.value.parameter_name == "user_id"
-    user_manager.engine.load.assert_not_called()
-
-
-def test_load_username_success(user_manager):
-    user_id = uuid.uuid4()
-    username = UserName(user_id=user_id)
-
-    # engine.query(...).key(...).all(...)
-    user_manager.engine.query.return_value = mock_query = MagicMock()
-    mock_query.key.return_value = mock_key = MagicMock()
-    mock_key.all.return_value = mock_all = MagicMock()
-    mock_all.__iter__.return_value = iter([username])
-
-    result = user_manager.load_username(user_id)
-    assert result == username
 
 
 def test_verify_invalid_code(user_manager):
