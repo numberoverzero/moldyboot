@@ -178,15 +178,15 @@ def test_authenticate_password_wrong_password(mock_user_manager):
 
 
 def test_authenticate_password_success(mock_user_manager):
-    user_id = uuid.uuid4()
     username = "abc"
     password = "hunter2"
     correct_hash = hash(password, 12)
+    user = User(user_id=uuid.uuid4(), password_hash=correct_hash)
 
-    mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
+    mock_user_manager.load_by_name.return_value = user
 
-    actual_user_id = authenticate_password(username, password, mock_user_manager)
-    assert actual_user_id == user_id
+    actual_user = authenticate_password(username, password, mock_user_manager)
+    assert actual_user == user
     mock_user_manager.load_by_name.assert_called_once_with(username)
 
 
@@ -204,18 +204,18 @@ def test_authentication_middleware_bypass(mock_key_manager, mock_user_manager):
 
 def test_authentication_middleware_basic_success(mock_key_manager, mock_user_manager):
     """Resource can use (pseudo) Basic Authentication with an explicit tag"""
-    user_id = uuid.uuid4()
     username, password = "abcUser", "|-|unterZ"
     correct_hash = passwords.hash(password, 12)
+    user = User(user_id=uuid.uuid4(), password_hash=correct_hash)
 
     req = request(body={"username": username, "password": password})
     resp, resource = response(), resource_with("authentication-basic")
     middleware = Authentication(mock_key_manager, mock_user_manager)
-    mock_user_manager.load_by_name.return_value = User(user_id=user_id, password_hash=correct_hash)
+    mock_user_manager.load_by_name.return_value = user
 
     middleware.process_resource(req, resp, resource, {})
 
-    assert req.context["authentication"] == {"user_id": user_id}
+    assert req.context["authentication"] == {"user": user}
     mock_key_manager.assert_not_called()
     mock_user_manager.load_by_name.assert_called_once_with(username)
 
@@ -263,7 +263,7 @@ def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, mock_key
 
     mock_user_manager.assert_not_called()
     mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
-    assert req.context["authentication"] == {"key": key, "user_id": user_id}
+    assert req.context["authentication"] == {"key": key}
 
 
 def test_authentication_middleware_signature_failure(mock_key_manager, mock_user_manager):

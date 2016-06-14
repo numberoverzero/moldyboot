@@ -23,19 +23,20 @@ class Keys:
     @tag("authentication-basic")
     def on_post(self, req: falcon.Request, resp: falcon.Response):
         """User logged in with username/password, persist the provided public key and return its id"""
-        user_id = req.context["authentication"]["user_id"]
+        user = req.context["authentication"]["user"]
         body = req.context["body"].json
+
         try:
             public_key = body["public_key"]
         except KeyError:
             raise falcon.HTTPBadRequest("Missing required parameter", "Must provide a public key.")
         try:
-            key = self.key_manager.new(user_id, public_key)
+            key = self.key_manager.new(user.user_id, public_key)
         # Can only be public_key, since user_id came from authentication
         except InvalidParameter:
             raise falcon.HTTPBadRequest("Invalid parameter", "Expected public key in PEM format.")
         except NotSaved:
             raise falcon.HTTPInternalServerError("Internal Server Error", "Failed to store public key")
 
-        req.context["response"] = {"key_id": "{}@{}".format(user_id, key.key_id)}
+        req.context["response"] = {"key_id": "{}@{}".format(user.user_id, key.key_id)}
         resp.status = falcon.HTTP_200

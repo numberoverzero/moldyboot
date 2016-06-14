@@ -4,19 +4,19 @@ import uuid
 
 from helpers import request, response
 
-from gaas.models import InvalidParameter, Key, NotSaved
+from gaas.models import InvalidParameter, Key, NotSaved, User
 from gaas.resources import Keys
 
 
-def basic_auth_request(user_id, **kwargs):
+def basic_auth_request(user, **kwargs):
     req = request(**kwargs)
-    req.context["authentication"] = {"user_id": user_id}
+    req.context["authentication"] = {"user": user}
     return req
 
 
 def signed_auth_request(key, **kwargs):
     req = request(**kwargs)
-    req.context["authentication"] = {"key": key, "user_id": key.user_id}
+    req.context["authentication"] = {"key": key}
     return req
 
 
@@ -50,8 +50,8 @@ def test_on_delete(mock_key_manager, rsa_pub):
 
 def test_on_post_no_public_key(mock_key_manager):
     """Upload a new key without a public_key in the body fails"""
-    user_id = uuid.uuid4()
-    req, resp = basic_auth_request(user_id), response()
+    user = User(user_id=uuid.uuid4())
+    req, resp = basic_auth_request(user), response()
 
     resource = Keys(mock_key_manager)
 
@@ -65,9 +65,9 @@ def test_on_post_no_public_key(mock_key_manager):
 
 def test_on_post_malformed_public_key(mock_key_manager):
     """Upload a new key with a non-pem formatted public key fails"""
-    user_id = uuid.uuid4()
+    user = User(user_id=uuid.uuid4())
     public_key = "not in pem format"
-    req, resp = basic_auth_request(user_id, body={"public_key": public_key}), response()
+    req, resp = basic_auth_request(user, body={"public_key": public_key}), response()
 
     resource = Keys(mock_key_manager)
 
@@ -78,14 +78,14 @@ def test_on_post_malformed_public_key(mock_key_manager):
 
     assert excinfo.value.title == "Invalid parameter"
     assert excinfo.value.description == "Expected public key in PEM format."
-    mock_key_manager.new.assert_called_once_with(user_id, public_key)
+    mock_key_manager.new.assert_called_once_with(user.user_id, public_key)
 
 
 def test_on_post_fail_to_save(mock_key_manager):
     """Upload a new key but fail to persist"""
-    user_id = uuid.uuid4()
+    user = User(user_id=uuid.uuid4())
     public_key = "not in pem format"
-    req, resp = basic_auth_request(user_id, body={"public_key": public_key}), response()
+    req, resp = basic_auth_request(user, body={"public_key": public_key}), response()
 
     resource = Keys(mock_key_manager)
 
@@ -96,21 +96,21 @@ def test_on_post_fail_to_save(mock_key_manager):
 
     assert excinfo.value.title == "Internal Server Error"
     assert excinfo.value.description == "Failed to store public key"
-    mock_key_manager.new.assert_called_once_with(user_id, public_key)
+    mock_key_manager.new.assert_called_once_with(user.user_id, public_key)
 
 
 def test_on_post(mock_key_manager, rsa_pub):
     """Upload a new key, returning user_id@key_id"""
-    user_id = uuid.uuid4()
+    user = User(user_id=uuid.uuid4())
     key_id = uuid.uuid4()
     public_key = rsa_pub.exportKey("PEM").decode("utf-8")
-    req, resp = basic_auth_request(user_id, body={"public_key": public_key}), response()
+    req, resp = basic_auth_request(user, body={"public_key": public_key}), response()
 
     resource = Keys(mock_key_manager)
-    mock_key_manager.new.return_value = Key(user_id=user_id, key_id=key_id)
+    mock_key_manager.new.return_value = Key(user_id=user.user_id, key_id=key_id)
 
     resource.on_post(req, resp)
 
-    assert req.context["response"] == {"key_id": "{}@{}".format(user_id, key_id)}
+    assert req.context["response"] == {"key_id": "{}@{}".format(user.user_id, key_id)}
     assert resp.status == falcon.HTTP_200
-    mock_key_manager.new.assert_called_once_with(user_id, public_key)
+    mock_key_manager.new.assert_called_once_with(user.user_id, public_key)
