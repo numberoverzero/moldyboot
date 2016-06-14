@@ -1,0 +1,7 @@
+Hello {username},
+
+Please visit {verification_url} to verify your email address.
+
+Thank you,
+
+gaas
