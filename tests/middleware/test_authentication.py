@@ -5,13 +5,14 @@ import falcon.testing
 import pytest
 import uuid
 
-from helpers import request, response, signed_request
+from ..helpers import request, response, signed_request
 
 from Crypto.Hash import SHA256
 from unittest.mock import Mock
 
 from gaas.middleware.authentication import Authentication, authenticate_password, authenticate_signature
-from gaas.models import InvalidParameter, Key, NotFound, User
+from gaas.models import Key, User
+from gaas.controllers import InvalidParameter, NotFound
 from gaas.security import passwords
 from gaas.security.passwords import hash
 from gaas.security.signatures import sign

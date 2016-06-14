@@ -4,6 +4,8 @@ import pytest
 from Crypto.PublicKey import RSA
 from unittest.mock import Mock
 
+import gaas.controllers.key
+import gaas.controllers.user
 import gaas.middleware
 import gaas.models
 import gaas.models.key
@@ -33,22 +35,22 @@ def mock_engine():
 
 @pytest.fixture
 def mock_key_manager():
-    return Mock(spec=gaas.models.key.KeyManager)
+    return Mock(spec=gaas.controllers.key.KeyManager)
 
 
 @pytest.fixture
 def mock_user_manager():
-    return Mock(spec=gaas.models.user.UserManager)
+    return Mock(spec=gaas.controllers.user.UserManager)
 
 
 @pytest.fixture
 def key_manager(mock_engine):
-    return gaas.models.key.KeyManager(mock_engine)
+    return gaas.controllers.key.KeyManager(mock_engine)
 
 
 @pytest.fixture
 def user_manager(mock_engine):
-    return gaas.models.user.UserManager(mock_engine)
+    return gaas.controllers.user.UserManager(mock_engine)
 
 
 @pytest.fixture

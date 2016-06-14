@@ -1,6 +1,6 @@
 import falcon
 
-from ..models import InvalidParameter, KeyManager, NotFound, UserManager, validate
+from ..controllers import InvalidParameter, KeyManager, NotFound, UserManager, validate
 from ..resources import get_metadata, has_tag
 from ..security import passwords, signatures
 

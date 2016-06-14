@@ -7,7 +7,9 @@ import json
 import sys
 from pathlib import Path
 
-from gaas.models import AlreadyExists, BaseModel, UserManager
+from gaas.models import BaseModel
+from gaas.controllers.user import UserManager
+from gaas.controllers import AlreadyExists
 from gaas.security import passwords
 
 

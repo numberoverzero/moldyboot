@@ -1,10 +1,10 @@
 import base64
-import bcrypt
-import pytest
 import uuid
 
-from gaas.models.validation import InvalidParameter, validate
+import bcrypt
+import pytest
 
+from gaas.controllers import InvalidParameter, validate
 
 valid_uuids = [
     uuid.uuid1(),

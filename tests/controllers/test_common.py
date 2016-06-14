@@ -1,9 +1,8 @@
 import pytest
 
 from bloop import Column, Integer, ConstraintViolation, GlobalSecondaryIndex, new_base
-from unittest.mock import MagicMock
 
-from gaas.models import NotFound, NotSaved, if_not_exist, persist_unique, query_one
+from gaas.controllers import NotSaved, persist_unique, if_not_exist
 
 
 @pytest.fixture
@@ -77,48 +76,3 @@ def test_persist_calls_rnd(mock_engine, model):
         persist_unique(obj, mock_engine, "data", rnd, 2)
     assert mock_engine.save.call_count == 2
     assert calls == [0, 1]
-
-
-def test_query_one_none_found(mock_engine, model):
-    mock_query = MagicMock()
-    mock_key = MagicMock()
-    mock_all = MagicMock()
-
-    # engine.query(...).key(...).all(...)
-    mock_engine.query.return_value = mock_query
-    mock_query.key.return_value = mock_key
-    mock_key.all.return_value = mock_all
-    mock_all.__iter__.side_effect = ValueError
-
-    with pytest.raises(NotFound):
-        query_one(mock_engine, model.by_data, model.data == 3)
-
-
-def test_query_one_multiple_found(mock_engine, model):
-    mock_query = MagicMock()
-    mock_key = MagicMock()
-    mock_all = MagicMock()
-
-    # engine.query(...).key(...).all(...)
-    mock_engine.query.return_value = mock_query
-    mock_query.key.return_value = mock_key
-    mock_key.all.return_value = mock_all
-    mock_all.__iter__.return_value = iter(["first", "second"])
-
-    with pytest.raises(NotFound):
-        query_one(mock_engine, model.by_data, model.data == 3)
-
-
-def test_query_one_success(mock_engine, model):
-    mock_query = MagicMock()
-    mock_key = MagicMock()
-    mock_all = MagicMock()
-
-    # engine.query(...).key(...).all(...)
-    mock_engine.query.return_value = mock_query
-    mock_query.key.return_value = mock_key
-    mock_key.all.return_value = mock_all
-    mock_all.__iter__.return_value = iter(["first"])
-
-    result = query_one(mock_engine, model.by_data, model.data == 3)
-    assert result == "first"

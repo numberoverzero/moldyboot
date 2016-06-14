@@ -1,7 +1,7 @@
 import falcon
 
+from ..controllers import InvalidParameter, NotFound, NotSaved, UserManager
 from .meta import tag
-from ..models import InvalidParameter, NotFound, NotSaved, UserManager
 
 
 def fail(message):

@@ -2,9 +2,10 @@ import falcon
 import pytest
 import uuid
 
-from helpers import request, response
+from ..helpers import request, response
 
-from gaas.models import InvalidParameter, NotFound, NotSaved, User
+from gaas.models import User
+from gaas.controllers import InvalidParameter, NotFound, NotSaved
 from gaas.resources import Verifications
 
 
