@@ -2,18 +2,54 @@
 
 import boto3
 import bloop
+import logging
 
-from rq import Connection, Worker
+from rq import Connection, Worker, Queue
 
-from gaas import controllers, models, tasks
+from gaas import controllers, models, tasks, templates
 
-# Set up dependencies for tasks
+# Inject dependencies ================================================================================================
 session = boto3.session.Session(profile_name="gaas-integ")
 engine = bloop.Engine(client=bloop.Client(boto_client=session.client("dynamodb")))
 engine.bind(base=models.BaseModel)
 user_manager = controllers.UserManager(engine)
 
-tasks.rq_inject_dependencies(session=session, user_manager=user_manager)
+tasks.inject_dependencies(session=session, user_manager=user_manager, render=templates.render)
+
+MAX_FAILURES = 3
+
+logger = logging.getLogger(__name__)
+
+queues = None
+
+
+# Configure retries ==================================================================================================
+# https://gist.github.com/spjwebster/6521272
+def retry_handler(job, *exc_info):
+    job.meta.setdefault('failures', 0)
+    job.meta['failures'] += 1
+
+    # Too many failures
+    if job.meta['failures'] >= MAX_FAILURES:
+        logger.warn('job %s: failed too many times times - moving to failed queue' % job.id)
+        job.save()
+        return True
+
+    # Requeue job and stop it from being moved into the failed queue
+    logger.warn('job %s: failed %d times - retrying' % (job.id, job.meta['failures']))
+
+    for queue in queues:
+        if queue.name == job.origin:
+            queue.enqueue_job(job, timeout=job.timeout)
+            return False
+
+    # Can't find queue, which should basically never happen as we only work jobs that match the given queue names and
+    # queues are transient in rq.
+    logger.warn('job %s: cannot find queue %s - moving to failed queue' % (job.id, job.origin))
+    return True
+
 
 with Connection():
-    Worker(["default"]).work()
+    worker = Worker([Queue()])
+    worker.push_exc_handler(retry_handler)
+    Worker.work()

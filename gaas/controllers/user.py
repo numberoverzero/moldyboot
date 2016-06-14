@@ -6,10 +6,11 @@ import uuid
 from .common import AlreadyExists, persist_unique, NotSaved, NotFound
 from .validation import validate
 from ..models import User, UserName
+from gaas.tasks import Scheduler
 
 
 class UserManager:
-    def __init__(self, engine: bloop.Engine):
+    def __init__(self, engine: bloop.Engine, scheduler: Scheduler=None):
         self.engine = engine
 
     def new(self, username: str, email: str, password_hash: str) -> User:
