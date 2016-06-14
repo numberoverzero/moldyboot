@@ -43,6 +43,17 @@ def test_username_not_found(ses, mock_user_manager):
     ses.send_email.assert_not_called()
 
 
+def test_already_verified(ses, mock_user_manager):
+    username = "user"
+    # No verification_code
+    mock_user_manager.load_by_name.return_value = User(user_id=uuid.uuid4(), email="user@domain.com")
+
+    send_verification_email(username)
+
+    mock_user_manager.load_by_name.assert_called_once_with(username)
+    ses.send_email.assert_not_called()
+
+
 def test_email_success(ses, mock_user_manager, render):
     username = "user"
     user_id = uuid.uuid4()

@@ -26,6 +26,10 @@ def send_verification_email(username):
         #   this function.  Don't retry this exception, either.
         return
 
+    # User is already verified, no need to send another email
+    if getattr(user, "verification_code", None) is None:
+        return
+
     # TODO use config
     support = "gaas-support@moldyboot.com"
     support_bounce = "gaas-support+bounce@moldyboot.com"
