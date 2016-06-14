@@ -239,38 +239,3 @@ def test_verify_wrong_code(user_manager):
         user_manager.verify(user, wrong_code)
     assert excinfo.value.obj is user
     user_manager.engine.assert_not_called()
-
-
-def test_refresh_verification_already_done(user_manager):
-    user = User(user_id=uuid.uuid4())
-
-    # Attribute not set
-    user_manager.refresh_verification(user)
-    assert user.verification_code is None
-
-    # Attribute is None
-    user_manager.refresh_verification(user)
-    assert user.verification_code is None
-
-    user_manager.engine.assert_not_called()
-
-
-def test_refresh_verification_constraint_violation(user_manager):
-    user = User(user_id=uuid.uuid4(), verification_code=uuid.uuid4())
-
-    user_manager.engine.save.side_effect = bloop.ConstraintViolation("save", user)
-    with pytest.raises(NotSaved) as excinfo:
-        user_manager.refresh_verification(user)
-
-    assert excinfo.value.obj is user
-    user_manager.engine.save.assert_called_once_with(user, atomic=True)
-
-
-def test_refresh_verification_success(user_manager):
-    old_code = uuid.uuid4()
-    user = User(user_id=uuid.uuid4(), verification_code=old_code)
-
-    user_manager.refresh_verification(user)
-
-    assert user.verification_code != old_code
-    user_manager.engine.save.assert_called_once_with(user, atomic=True)

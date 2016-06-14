@@ -89,5 +89,6 @@ def test_on_get_verification_success(mock_user_manager):
     mock_user_manager.load_by_id.return_value = user
 
     resource.on_get(req, resp, user_id, code)
+    assert resp.status == falcon.HTTP_200
     mock_user_manager.load_by_id.assert_called_once_with(user_id)
     mock_user_manager.verify.assert_called_once_with(user, code)

@@ -105,14 +105,3 @@ class UserManager:
         # User has verification code, doesn't match the one we're trying to use
         else:
             raise NotSaved(user)
-
-    def refresh_verification(self, user: User):
-        current_code = getattr(user, "verification_code", None)
-        if current_code is None:
-            user.verification_code = None
-            return
-        user.verification_code = uuid.uuid4()
-        try:
-            self.engine.save(user, atomic=True)
-        except ConstraintViolation:
-            raise NotSaved(user)
