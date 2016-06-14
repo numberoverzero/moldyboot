@@ -1,10 +1,14 @@
+#!/usr/bin/env python
+
 import bloop
+import click
 import boto3
 import json
+import sys
 from pathlib import Path
 
-from ..models import BaseModel, UserManager
-from ..security import passwords
+from gaas.models import AlreadyExists, BaseModel, UserManager
+from gaas.security import passwords
 
 
 boto3.setup_default_session(profile_name="gaas-integ")
@@ -19,7 +23,22 @@ def load_credentials(filename):
         return json.loads(file.read())
 
 
+@click.group()
+def cli():
+    pass
+
+
+@click.command("cu")
+@click.argument("credentials_file")
 def new_user(credentials_file):
     credentials = load_credentials(credentials_file)
     hashed = passwords.hash(credentials["password"], 12)
-    return user_manager.new(credentials["username"], credentials["email"], hashed)
+    try:
+        user_manager.new(credentials["username"], credentials["email"], hashed)
+    except AlreadyExists:
+        sys.exit("username '{}' is taken".format(credentials["username"]))
+cli.add_command(new_user)
+
+
+if __name__ == "__main__":
+    cli()

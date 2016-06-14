@@ -2,11 +2,14 @@ arrow
 bloop
 bcrypt
 boto3
+click
 falcon
+hiredis
 httpie
 humanize
 pycrypto
 pytest
 roughly
+rq
 texas
 uritools

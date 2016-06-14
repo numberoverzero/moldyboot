@@ -1,9 +1,13 @@
+#!/usr/bin/env python
+
+import click
 import json
+import pprint
 import requests
 from pathlib import Path
 from Crypto.PublicKey import RSA
 
-from ..security.signatures import sign
+from gaas.security.signatures import sign
 
 
 def load_credentials(filename):
@@ -48,3 +52,20 @@ class SignedAuth(requests.auth.AuthBase):
             request.method, request.path_url, request.headers, request.body,
             self.client.key, self.client.key_id)
         return request
+
+
+@click.group()
+def cli():
+    pass
+
+
+@click.command("check")
+@click.argument("credentials_file")
+def check_public(credentials_file):
+    client = Client(credentials_file)
+    pprint.pprint(client.check_public())
+cli.add_command(check_public)
+
+
+if __name__ == "__main__":
+    cli()

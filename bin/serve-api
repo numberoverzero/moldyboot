@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+import bloop
+import boto3
+import falcon
+from wsgiref import simple_server
+from gaas.resources import Keys, Verifications
+from gaas.models import BaseModel
+from gaas.models.key import KeyManager
+from gaas.models.user import UserManager
+from gaas.middleware import Authentication, TranslateJSON
+
+boto3.setup_default_session(profile_name="gaas-integ")
+engine = bloop.Engine()
+engine.bind(base=BaseModel)
+
+key_manager = KeyManager(engine)
+user_manager = UserManager(engine)
+
+api = application = falcon.API(
+    middleware=[
+        TranslateJSON(),
+        Authentication(key_manager, user_manager)
+    ]
+)
+api.add_route("/keys", Keys(key_manager))
+api.add_route("/verify/{user_id}/{verification_code}", Verifications(user_manager))
+
+
+httpd = simple_server.make_server("127.0.0.1", 8000, api)
+print("Serving on 8000")
+httpd.serve_forever()
