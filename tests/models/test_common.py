@@ -1,7 +1,9 @@
 import pytest
 
-from bloop import Column, Integer, ConstraintViolation, new_base
-from gaas.models.common import NotSaved, _missing, persist_unique
+from bloop import Column, Integer, ConstraintViolation, GlobalSecondaryIndex, new_base
+from unittest.mock import MagicMock
+
+from gaas.models import NotFound, NotSaved, if_not_exist, persist_unique, query_one
 
 
 @pytest.fixture
@@ -9,11 +11,14 @@ def model(mock_engine):
     class Model(new_base()):
         id = Column(Integer, hash_key=True)
         data = Column(Integer)
+
+        by_data = GlobalSecondaryIndex(hash_key="data")
+
     mock_engine.bind(base=Model)
     return Model
 
 
-def test_missing_condition(mock_engine):
+def test_if_not_exist(mock_engine):
     """Condition uses hash or hash & range depending on model"""
     class HashOnly(new_base()):
         id = Column(Integer, hash_key=True)
@@ -25,8 +30,8 @@ def test_missing_condition(mock_engine):
     mock_engine.bind(base=HashOnly)
     mock_engine.bind(base=HashAndRange)
 
-    assert _missing(HashOnly()) == HashOnly.id.is_(None)
-    assert _missing(HashAndRange()) == HashAndRange.h.is_(None) & HashAndRange.r.is_(None)
+    assert if_not_exist(HashOnly()) == HashOnly.id.is_(None)
+    assert if_not_exist(HashAndRange()) == HashAndRange.h.is_(None) & HashAndRange.r.is_(None)
 
 
 def test_persist_no_tries(mock_engine, model):
@@ -72,3 +77,48 @@ def test_persist_calls_rnd(mock_engine, model):
         persist_unique(obj, mock_engine, "data", rnd, 2)
     assert mock_engine.save.call_count == 2
     assert calls == [0, 1]
+
+
+def test_query_one_none_found(mock_engine, model):
+    mock_query = MagicMock()
+    mock_key = MagicMock()
+    mock_all = MagicMock()
+
+    # engine.query(...).key(...).all(...)
+    mock_engine.query.return_value = mock_query
+    mock_query.key.return_value = mock_key
+    mock_key.all.return_value = mock_all
+    mock_all.__iter__.side_effect = ValueError
+
+    with pytest.raises(NotFound):
+        query_one(mock_engine, model.by_data, model.data == 3)
+
+
+def test_query_one_multiple_found(mock_engine, model):
+    mock_query = MagicMock()
+    mock_key = MagicMock()
+    mock_all = MagicMock()
+
+    # engine.query(...).key(...).all(...)
+    mock_engine.query.return_value = mock_query
+    mock_query.key.return_value = mock_key
+    mock_key.all.return_value = mock_all
+    mock_all.__iter__.return_value = iter(["first", "second"])
+
+    with pytest.raises(NotFound):
+        query_one(mock_engine, model.by_data, model.data == 3)
+
+
+def test_query_one_success(mock_engine, model):
+    mock_query = MagicMock()
+    mock_key = MagicMock()
+    mock_all = MagicMock()
+
+    # engine.query(...).key(...).all(...)
+    mock_engine.query.return_value = mock_query
+    mock_query.key.return_value = mock_key
+    mock_key.all.return_value = mock_all
+    mock_all.__iter__.return_value = iter(["first"])
+
+    result = query_one(mock_engine, model.by_data, model.data == 3)
+    assert result == "first"
