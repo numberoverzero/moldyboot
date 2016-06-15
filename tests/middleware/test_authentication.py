@@ -221,6 +221,25 @@ def test_authentication_middleware_basic_success(mock_key_manager, mock_user_man
     mock_user_manager.load_by_name.assert_called_once_with(username)
 
 
+def test_authentication_middleware_unverified(mock_key_manager, mock_user_manager):
+    """Users that haven't verified their email accounts fail authentication"""
+    username, password = "abcUser", "|-|unterZ"
+    correct_hash = passwords.hash(password, 12)
+    user = User(user_id=uuid.uuid4(), password_hash=correct_hash, verification_code=uuid.uuid4())
+
+    req = request(body={"username": username, "password": password})
+    resp, resource = response(), resource_with("authentication-basic")
+    middleware = Authentication(mock_key_manager, mock_user_manager)
+    mock_user_manager.load_by_name.return_value = user
+
+    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
+        middleware.process_resource(req, resp, resource, {})
+    assert excinfo.value.description == "Account not verified"
+
+    mock_key_manager.assert_not_called()
+    mock_user_manager.load_by_name.assert_called_once_with(username)
+
+
 def test_authentication_middleware_basic_no_username(mock_key_manager, mock_user_manager):
     req = request(body={"password": "|-|unterZ"})
     resp, resource = response(), resource_with("authentication-basic")
@@ -258,13 +277,37 @@ def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, mock_key
 
     key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
     mock_key_manager.load.return_value = key
+    user = User(user_id=user_id)
+    mock_user_manager.load_by_id.return_value = user
 
     middleware = Authentication(mock_key_manager, mock_user_manager)
     middleware.process_resource(req, resp, resource, {})
 
-    mock_user_manager.assert_not_called()
+    mock_user_manager.load_by_id.assert_called_once_with(user_id)
     mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
-    assert req.context["authentication"] == {"key": key}
+    assert req.context["authentication"] == {"key": key, "user": user}
+
+
+def test_authentication_middleware_signature_unknown_user(rsa_priv, rsa_pub, mock_key_manager, mock_user_manager):
+    # build a signed request
+    user_id, key_id = uuid.uuid4(), uuid.uuid4()
+    id = "{}@{}".format(user_id, key_id)
+    req = signed_request(private_key=rsa_priv, key_id=id)
+
+    # resource w/o tags defaults to signature-based auth
+    resp, resource = response(), resource_with()
+
+    key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
+    mock_key_manager.load.return_value = key
+    # signature matches but user_id is unknown
+    mock_user_manager.load_by_id.side_effect = NotFound
+
+    middleware = Authentication(mock_key_manager, mock_user_manager)
+    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
+        middleware.process_resource(req, resp, resource, {})
+    assert excinfo.value.description == "Unknown user"
+    mock_user_manager.load_by_id.assert_called_once_with(user_id)
+    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authentication_middleware_signature_failure(mock_key_manager, mock_user_manager):

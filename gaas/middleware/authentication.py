@@ -78,7 +78,11 @@ class Authentication:
         else:
             self._signature_auth(req, resource)
 
-        # TODO on success, fail if user hasn't verified email
+        # Both basic auth and signature auth populate the auth context with a user.
+        # Verifying the account's email is a required part of authentication
+        user = req.context["authentication"]["user"]
+        if not user.is_verified:
+            fail("Account not verified")
 
     def _basic_auth(self, req: falcon.Request):
         body = req.context["body"].json
@@ -109,4 +113,8 @@ class Authentication:
         except AttributeError:
             additional_headers_to_sign = []
         key = authenticate_signature(method, path, headers, body, additional_headers_to_sign, self.key_manager)
-        req.context["authentication"] = {"key": key}
+        try:
+            user = self.user_manager.load_by_id(key.user_id)
+        except NotFound:
+            fail("Unknown user")
+        req.context["authentication"] = {"key": key, "user": user}
