@@ -7,7 +7,8 @@ import uuid
 
 from ..helpers import request, response, signed_request
 
-from Crypto.Hash import SHA256
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 from unittest.mock import Mock
 
 from gaas.middleware.authentication import Authentication, authenticate_password, authenticate_signature
@@ -24,8 +25,9 @@ SIGNATURE_MISMATCH_MESSAGE = (
 
 def sha256(body):
     body = body or ""
-    hash = SHA256.new(body.encode("utf-8")).digest()
-    return base64.b64encode(hash).decode("utf-8")
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(body.encode("utf-8"))
+    return base64.b64encode(digest.finalize()).decode("utf-8")
 
 
 def resource_with(*tags):
@@ -121,7 +123,7 @@ def test_authenticate_signature_key_missing_or_expired(valid_request, mock_key_m
 def test_authenticate_signature_invalid_signature(generate_key, valid_request, mock_key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
-    wrong_public = generate_key().publickey()
+    wrong_public = generate_key().public_key()
 
     mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=wrong_public)
 
