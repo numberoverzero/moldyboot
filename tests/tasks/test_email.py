@@ -24,49 +24,54 @@ def ses(boto3_session):
 
 
 def test_username_invalid(ses, mock_user_manager):
+    port = 12345
     username = "-unknown+user"
     mock_user_manager.load_by_name.side_effect = InvalidParameter("username", username, "test message")
 
-    send_verification_email(username)
+    send_verification_email(username, port)
 
     mock_user_manager.load_by_name.assert_called_once_with(username)
     ses.send_email.assert_not_called()
 
 
 def test_username_not_found(ses, mock_user_manager):
+    port = 12345
+
     username = "user"
     mock_user_manager.load_by_name.side_effect = NotFound
 
-    send_verification_email(username)
+    send_verification_email(username, port)
 
     mock_user_manager.load_by_name.assert_called_once_with(username)
     ses.send_email.assert_not_called()
 
 
 def test_already_verified(ses, mock_user_manager):
+    port = 12345
     username = "user"
     # No verification_code
     mock_user_manager.load_by_name.return_value = User(user_id=uuid.uuid4(), email="user@domain.com")
 
-    send_verification_email(username)
+    send_verification_email(username, port)
 
     mock_user_manager.load_by_name.assert_called_once_with(username)
     ses.send_email.assert_not_called()
 
 
 def test_email_success(ses, mock_user_manager, render):
+    port = 12345
     username = "user"
     user_id = uuid.uuid4()
     email = "user@domain.com"
     verification_code = uuid.uuid4()
-    verification_url = "http://localhost:8000/verify/{}/{}".format(user_id, verification_code)
+    verification_url = "http://localhost:12345/verify/{}/{}".format(user_id, verification_code)
     user = User(user_id=user_id, verification_code=verification_code, email=email)
     mock_user_manager.load_by_name.return_value = user
 
     rendered = "stub render"
     render.return_value = rendered
 
-    send_verification_email(username)
+    send_verification_email(username, port)
 
     mock_user_manager.load_by_name.assert_called_once_with(username)
     render.assert_any_call("verify-email.txt", username=username, verification_url=verification_url)
