@@ -6,6 +6,10 @@ import pytest
 
 from gaas.controllers import InvalidParameter, validate
 
+from cryptography.hazmat.primitives import serialization
+
+from tests.helpers import as_der
+
 valid_uuids = [
     uuid.uuid1(),
     uuid.uuid4()
@@ -114,18 +118,39 @@ def test_invalid_username(invalid_username):
 
 def test_valid_public_key(rsa_pub):
     valid_keys = [
+        # RSAPublicKey
         rsa_pub,
-        rsa_pub.exportKey("DER"),
-        rsa_pub.exportKey("PEM"),
-        rsa_pub.exportKey("PEM").decode("utf-8")
+        # DER
+        rsa_pub.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ),
+        rsa_pub.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.PKCS1
+        ),
+        # PEM
+        rsa_pub.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ),
+        rsa_pub.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.PKCS1
+        ),
+        rsa_pub.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode("utf-8")
     ]
     for valid_key in valid_keys:
-        assert validate("public_key", valid_key) == rsa_pub
+        validated = validate("public_key", valid_key)
+        assert as_der(validated) == as_der(rsa_pub)
 
 
 def test_invalid_public_key(rsa_pub):
     # base64 of DER encoding fails (just use PEM)
-    encoded_bytes = base64.b64encode(rsa_pub.exportKey("DER"))
+    encoded_bytes = base64.b64encode(as_der(rsa_pub))
 
     invalid_keys = [
         encoded_bytes,

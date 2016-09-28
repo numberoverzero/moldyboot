@@ -8,6 +8,8 @@ from roughly import has_type, near
 from gaas.controllers import InvalidParameter, NotFound, NotSaved
 from gaas.models import Key
 
+from tests.helpers import as_der
+
 
 def test_new_invalid_user_id(rsa_pub, key_manager):
     user_id = "not a uuid"
@@ -29,7 +31,7 @@ def test_new_invalid_public_key(key_manager):
 
 def test_new_unique_fails(rsa_pub, key_manager):
     user_id = uuid.uuid4()
-    public = rsa_pub.exportKey("PEM").decode("utf-8")
+    public = as_der(rsa_pub)
 
     roughly_one_hour = near(arrow.now().replace(hours=1), seconds=5)
     expected_key = Key(user_id=user_id, public=rsa_pub, until=roughly_one_hour, key_id=has_type(uuid.UUID))
@@ -45,7 +47,7 @@ def test_new_unique_fails(rsa_pub, key_manager):
 
 def test_new_success(rsa_pub, key_manager):
     user_id = uuid.uuid4()
-    public = rsa_pub.exportKey("PEM").decode("utf-8")
+    public = as_der(rsa_pub)
 
     key_manager.new(user_id, public)
 

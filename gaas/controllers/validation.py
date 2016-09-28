@@ -1,7 +1,10 @@
 import re
 import uuid
 
-from Crypto.PublicKey import RSA
+from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+from cryptography.hazmat.primitives import serialization
 
 validators = {}
 __all__ = ["validate", "InvalidParameter"]
@@ -92,12 +95,24 @@ validators["username"] = _validate_username
 
 
 def _validate_public_key(public):
-    if isinstance(public, RSA._RSAobj):
-        return Result.of(public.publickey())
-    try:
-        return Result.of(RSA.importKey(public))
-    except (ValueError, IndexError, TypeError):
-        return Result.error("invalid format")
+    if isinstance(public, RSAPublicKey):
+        return Result.of(public)
+    if isinstance(public, str):
+        public = public.encode("utf-8")
+    for loader in [
+        serialization.load_pem_public_key,
+        serialization.load_der_public_key,
+        serialization.load_ssh_public_key
+    ]:
+        try:
+            return Result.of(loader(
+                data=public,
+                backend=default_backend()
+            ))
+        except (ValueError, UnsupportedAlgorithm):
+            continue
+    return Result.error("Malformed public key")
+
 validators["public_key"] = _validate_public_key
 
 

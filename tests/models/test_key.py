@@ -1,15 +1,12 @@
 import arrow
 import base64
-from cryptography.hazmat.primitives import serialization
 
 from gaas.models.key import Key, PublicKeyType
+from tests.helpers import as_der
 
 
 def test_key_type(rsa_pub):
-    pub_bytes = rsa_pub.public_bytes(
-        encoding=serialization.Encoding.DER,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
+    pub_bytes = as_der(rsa_pub)
     serialized_public = base64.b64encode(pub_bytes)
 
     key_type = PublicKeyType()
