@@ -1,8 +1,26 @@
 import arrow
 import base64
+import uuid
 
 from gaas.models.key import Key, PublicKeyType
 from tests.helpers import as_der
+
+
+def test_eq(generate_key):
+    key = Key(user_id=uuid.uuid4(), key_id=uuid.uuid4(), public=generate_key().public_key(), until=arrow.now())
+    other = Key(user_id=key.user_id, key_id=key.key_id, public=key.public, until=key.until)
+
+    assert key != object()
+    assert key == other
+    # missing an attribute
+    for attr in ["user_id", "key_id", "public", "until"]:
+        delattr(other, attr)
+        assert key != other
+        # reset the attribute
+        setattr(other, attr, getattr(key, attr))
+    # public key mismatch
+    other.public = generate_key().public_key()
+    assert key != other
 
 
 def test_key_type(rsa_pub):
