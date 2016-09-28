@@ -4,8 +4,12 @@ import click
 import json
 import pprint
 import requests
+import requests.auth
 from pathlib import Path
-from Crypto.PublicKey import RSA
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from gaas.security.signatures import sign
 
@@ -17,23 +21,35 @@ def load_credentials(filename):
 
 
 class Client:
-    def __init__(self, credentials_file):
-        self.endpoint = "http://127.0.0.1:8000"
-        self.auth = SignedAuth(self)
-        self.__credentials = load_credentials(credentials_file)
-        self._refresh_key()
+    auth = None
+    credentials = None
+    endpoint = "http://127.0.0.1:8010"
+    key = None
+    key_id = None
 
-    def _refresh_key(self):
-        self.key = RSA.generate(2048)
+    def __init__(self, credentials_file):
+        self.auth = SignedAuth(self)
+        self.credentials = load_credentials(credentials_file)
+        self.refresh_key()
+
+    def refresh_key(self):
+        self.key = rsa.generate_private_key(
+            public_exponent=66537,
+            key_size=2048,
+            backend=default_backend()
+        )
         data = {
-            **self.__credentials,
-            "public_key": self.key.publickey().exportKey("PEM").decode("utf-8")
+            **self.credentials,
+            "public_key": self.key.public_key().public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            ).decode("utf-8")
         }
         resp = requests.post(self.endpoint + "/keys", json=data)
         resp.raise_for_status()
         self.key_id = resp.json()["key_id"]
 
-    def _revoke_key(self):
+    def revoke_key(self):
         resp = requests.delete(self.endpoint + "/keys", auth=self.auth)
         resp.raise_for_status()
 

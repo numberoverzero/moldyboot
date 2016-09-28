@@ -12,13 +12,15 @@ from gaas.controllers import KeyManager, UserManager
 from gaas.middleware import Authentication, TranslateJSON
 from gaas.tasks import Scheduler
 
+PORT = 8010
+
 boto3.setup_default_session(profile_name="gaas-integ")
 engine = bloop.Engine()
 engine.bind(base=BaseModel)
 
 redis_connection = redis.StrictRedis()
 queue = rq.Queue(connection=redis_connection)
-scheduler = Scheduler(queue)
+scheduler = Scheduler(queue, PORT)
 
 key_manager = KeyManager(engine)
 user_manager = UserManager(engine, scheduler)
@@ -33,6 +35,6 @@ api.add_route("/keys", Keys(key_manager))
 api.add_route("/verify/{user_id}/{verification_code}", Verifications(user_manager))
 
 
-httpd = simple_server.make_server("127.0.0.1", 8010, api)
-print("Serving API on 8010")
+httpd = simple_server.make_server("127.0.0.1", PORT, api)
+print("Serving API on {}".format(PORT))
 httpd.serve_forever()

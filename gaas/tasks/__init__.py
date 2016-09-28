@@ -7,12 +7,13 @@ __all__ = ["Scheduler"]
 
 
 class Scheduler:
-    def __init__(self, queue: rq.Queue):
+    def __init__(self, queue: rq.Queue, port: int):
         self.queue = queue
+        self.port = port
 
     def send_verification_email(self, username):
         from . import email
-        self.queue.enqueue(email.send_verification_email, username)
+        self.queue.enqueue(email.send_verification_email, username, self.port)
 
 
 def inject_dependencies(**kwargs):  # pragma: no cover

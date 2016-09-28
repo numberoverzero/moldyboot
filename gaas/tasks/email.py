@@ -11,7 +11,7 @@ session = None
 render = None
 
 
-def send_verification_email(username):
+def send_verification_email(username: str, port: int):
     """
     Do not call directly, this is executed by an rq worker.
     Use tasks.Scheduler.send_verification_email instead
@@ -33,7 +33,7 @@ def send_verification_email(username):
     # TODO use config
     support = "gaas-support@moldyboot.com"
     support_bounce = "gaas-support+bounce@moldyboot.com"
-    verification_url = "http://localhost:8000/verify/{}/{}".format(user.user_id, user.verification_code)
+    verification_url = "http://localhost:{}/verify/{}/{}".format(port, user.user_id, user.verification_code)
     message = {
         "src": support,
         "dst": user.email,
