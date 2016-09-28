@@ -3,9 +3,11 @@ import arrow.parser
 import base64
 import uritools
 
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_PSS
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from typing import Sequence, Dict, Optional
 
 __all__ = ["sign", "verify"]
@@ -22,7 +24,7 @@ def sign(method: str,
          path: str,
          headers: Dict,
          body: Optional[str],
-         private_key: RSA._RSAobj,
+         private_key: RSAPrivateKey,
          id: str,
          headers_to_sign: Optional[Sequence[str]]=None):
     """
@@ -41,9 +43,14 @@ def sign(method: str,
     # 4) Build a signature from the available headers
     signing_string = _build_signing_string(method, path, headers, headers_to_sign)
     # 5) Sign with private key
-    key = PKCS1_PSS.new(private_key)
-    hash = SHA256.new(signing_string)
-    signature = key.sign(hash)
+    signature = private_key.sign(
+        signing_string,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
     _insert_authorization_header(headers, headers_to_sign, signature, id)
 
 
@@ -52,7 +59,7 @@ def verify(
         path: str,
         headers: Dict,
         body: Optional[str],
-        public_key: RSA._RSAobj,
+        public_key: RSAPublicKey,
         signature: str,
         signed_headers: Sequence[str],
         headers_to_sign: Optional[Sequence[str]]=None):
@@ -73,9 +80,17 @@ def verify(
     # 4) Build the expected signature from the available headers
     signing_string = _build_signing_string(method, path, headers, headers_to_sign, signed_headers=signed_headers)
     # 5) Verify the expected signature against the provided signature
-    key = PKCS1_PSS.new(public_key)
-    hash = SHA256.new(signing_string)
-    if not key.verify(hash, base64.b64decode(signature.encode("utf-8"))):
+    try:
+        public_key.verify(
+            base64.b64decode(signature.encode("utf-8")),
+            signing_string,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+    except InvalidSignature:
         raise BadSignature("Signatures do not match.")
 
 
@@ -85,7 +100,7 @@ def _ensure_minimum_headers(headers_to_sign):
             headers_to_sign.append(header)
 
 
-def _populate_missing_headers(headers, body):
+def _populate_missing_headers(headers: Dict[str, str], body: str):
     headers.setdefault("x-date", arrow.now().to("utc").isoformat())
     headers.setdefault("content-length", str(0 if not body else len(body)))
     headers.setdefault("x-content-sha256", _compute_body_hash(body))
@@ -102,19 +117,25 @@ def _check_missing_headers(headers, headers_to_sign, signed_headers=None):
         raise BadSignature("Signature did not include all required headers ({})".format(" ".join(headers_to_sign)))
 
 
-def _compute_body_hash(body):
+def _compute_body_hash(body: str) -> str:
     body = body or ""
-    hash = SHA256.new(body.encode("utf-8"))
-    return base64.b64encode(hash.digest()).decode("utf-8")
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(body.encode("utf-8"))
+    return base64.b64encode(digest.finalize()).decode("utf-8")
 
 
-def _build_signing_string(method, path, headers, headers_to_sign, signed_headers=None):
+def _build_signing_string(
+        method: str, path: str, headers: Dict[str, str],
+        headers_to_sign: Sequence[str], signed_headers: Optional[Sequence[str]]=None) -> bytes:
     # When signed_headers are passed, that ordering is used (verify)
     # Otherwise, the headers to sign are used for ordering (sign)
-    signed_headers = signed_headers or headers_to_sign
+    if signed_headers:
+        header_names = signed_headers
+    else:
+        header_names = headers_to_sign
     pieces = []
     line_format = "{}: {}"
-    for header_name in signed_headers:
+    for header_name in header_names:
         if header_name == "(request-target)":
             value = _build_request_target(method, path)
         else:
@@ -123,7 +144,7 @@ def _build_signing_string(method, path, headers, headers_to_sign, signed_headers
     return "\n".join(pieces).encode("utf-8")
 
 
-def _build_request_target(method, path):
+def _build_request_target(method: str, path: str):
     parts = uritools.urisplit(path)
     if parts.query:
         target = parts.path + "?" + parts.query
@@ -132,13 +153,13 @@ def _build_request_target(method, path):
     return "{} {}".format(method, target)
 
 
-def _insert_authorization_header(headers, headers_to_sign, signature, id):
+def _insert_authorization_header(headers: Dict[str, str], headers_to_sign: Sequence[str], signature: bytes, id: str):
     signature = base64.b64encode(signature).decode("utf-8")
     auth_format = "Signature headers=\"{}\" id=\"{}\" signature=\"{}\""
     headers["authorization"] = auth_format.format(" ".join(headers_to_sign), id, signature)
 
 
-def _verify_date(headers, now):
+def _verify_date(headers: Dict[str, str], now: arrow.Arrow):
     iso8601_date = headers["x-date"]
     try:
         date = arrow.get(iso8601_date)
@@ -150,7 +171,7 @@ def _verify_date(headers, now):
         raise BadSignature("x-date not within 5 minutes of current time")
 
 
-def _verify_body(headers, body):
+def _verify_body(headers: Dict[str, str], body: str):
     body = body or ""
     header_x_content_sha256 = headers["x-content-sha256"]
     header_content_length = headers["content-length"] or "0"

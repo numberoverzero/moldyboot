@@ -3,7 +3,8 @@ import base64
 import pytest
 import re
 
-from Crypto.Hash import SHA256
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 
 from gaas.security.signatures import BadSignature, sign, verify
 
@@ -23,8 +24,9 @@ def extract_signature(string):
 
 def sha256(body):
     body = body or ""
-    hash = SHA256.new(body.encode("utf-8")).digest()
-    return base64.b64encode(hash).decode("utf-8")
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(body.encode("utf-8"))
+    return base64.b64encode(digest.finalize()).decode("utf-8")
 
 
 def test_sign_fails_missing_header(rsa_priv):
