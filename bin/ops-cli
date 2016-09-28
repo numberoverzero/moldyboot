@@ -21,7 +21,7 @@ engine.bind(base=BaseModel)
 
 redis_connection = redis.StrictRedis()
 queue = rq.Queue(connection=redis_connection)
-scheduler = Scheduler(queue)
+scheduler = Scheduler(queue, 8010)
 
 user_manager = UserManager(engine, scheduler)
 
