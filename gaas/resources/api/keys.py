@@ -1,5 +1,7 @@
 import falcon
 
+from cryptography.hazmat.primitives import serialization
+
 from ...controllers import InvalidParameter, KeyManager, NotSaved
 from ..meta import tag
 
@@ -10,7 +12,10 @@ class Keys:
 
     def on_get(self, req: falcon.Request, resp: falcon.Response):
         """Caller passed authentication, return the public key their signature passed with"""
-        public_key = req.context["authentication"]["key"].public.exportKey(format="PEM").decode("utf-8")
+        public_key = req.context["authentication"]["key"].public.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode("utf-8")
         req.context["response"] = {"public_key": public_key}
         resp.status = falcon.HTTP_200
 

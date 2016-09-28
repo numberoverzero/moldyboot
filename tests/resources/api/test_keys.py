@@ -2,6 +2,8 @@ import falcon
 import pytest
 import uuid
 
+from cryptography.hazmat.primitives import serialization
+
 from tests.helpers import request, response
 
 from gaas.models import Key, User
@@ -29,7 +31,10 @@ def test_on_get(mock_key_manager, rsa_pub):
     resource = Keys(mock_key_manager)
     resource.on_get(req, resp)
 
-    public_key_str = rsa_pub.exportKey("PEM").decode("utf-8")
+    public_key_str = rsa_pub.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode("utf-8")
 
     assert req.context["response"] == {"public_key": public_key_str}
     assert resp.status == falcon.HTTP_200
@@ -104,7 +109,10 @@ def test_on_post(mock_key_manager, rsa_pub):
     """Upload a new key, returning user_id@key_id"""
     user = User(user_id=uuid.uuid4())
     key_id = uuid.uuid4()
-    public_key = rsa_pub.exportKey("PEM").decode("utf-8")
+    public_key = rsa_pub.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode("utf-8")
     req, resp = basic_auth_request(user, body={"public_key": public_key}), response()
 
     resource = Keys(mock_key_manager)
