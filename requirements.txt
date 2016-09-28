@@ -3,11 +3,11 @@ bloop
 bcrypt
 boto3
 click
+cryptography
 falcon
 hiredis
 httpie
 humanize
-pycrypto
 pytest
 roughly
 rq

@@ -10,9 +10,7 @@ from typing import Sequence, Dict, Optional
 __all__ = ["sign", "verify"]
 
 # These must be signed on every request
-_MINIMUM_HEADERS = [
-    "x-date", "(request-target)",
-    "content-length", "x-content-sha256"]
+_MINIMUM_HEADERS = ["x-date", "(request-target)", "content-length", "x-content-sha256"]
 
 
 class BadSignature(Exception):

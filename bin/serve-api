@@ -6,7 +6,7 @@ import redis
 import rq
 
 from wsgiref import simple_server
-from gaas.resources import Keys, Verifications
+from gaas.resources.api import Keys, Verifications
 from gaas.models import BaseModel
 from gaas.controllers import KeyManager, UserManager
 from gaas.middleware import Authentication, TranslateJSON
@@ -33,6 +33,6 @@ api.add_route("/keys", Keys(key_manager))
 api.add_route("/verify/{user_id}/{verification_code}", Verifications(user_manager))
 
 
-httpd = simple_server.make_server("127.0.0.1", 8000, api)
-print("Serving on 8000")
+httpd = simple_server.make_server("127.0.0.1", 8010, api)
+print("Serving API on 8010")
 httpd.serve_forever()

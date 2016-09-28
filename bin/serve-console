@@ -1,0 +1,12 @@
+#!/usr/bin/env python
+import falcon
+
+from wsgiref import simple_server
+from gaas.resources.console import Login
+
+api = application = falcon.API()
+api.add_route("/login", Login())
+
+httpd = simple_server.make_server("127.0.0.1", 8020, api)
+print("Serving CONSOLE on 8020")
+httpd.serve_forever()

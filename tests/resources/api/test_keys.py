@@ -2,11 +2,11 @@ import falcon
 import pytest
 import uuid
 
-from ..helpers import request, response
+from tests.helpers import request, response
 
 from gaas.models import Key, User
 from gaas.controllers import InvalidParameter, NotSaved
-from gaas.resources import Keys
+from gaas.resources.api.keys import Keys
 
 
 def basic_auth_request(user, **kwargs):

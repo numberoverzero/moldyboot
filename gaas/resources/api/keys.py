@@ -1,7 +1,7 @@
 import falcon
 
-from ..controllers import InvalidParameter, KeyManager, NotSaved
-from .meta import tag
+from ...controllers import InvalidParameter, KeyManager, NotSaved
+from ..meta import tag
 
 
 class Keys:

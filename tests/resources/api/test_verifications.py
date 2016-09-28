@@ -2,11 +2,11 @@ import falcon
 import pytest
 import uuid
 
-from ..helpers import request, response
+from tests.helpers import request, response
 
 from gaas.models import User
 from gaas.controllers import InvalidParameter, NotFound, NotSaved
-from gaas.resources import Verifications
+from gaas.resources.api.verifications import Verifications
 
 
 def test_on_get_invalid_user_id(mock_user_manager):
