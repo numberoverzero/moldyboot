@@ -6,6 +6,8 @@ import json
 import sys
 import uritools
 
+from cryptography.hazmat.primitives import serialization
+
 from gaas.middleware import BodyWrapper
 from gaas.security import signatures
 
@@ -79,3 +81,10 @@ class MockResource(falcon.testing.SimpleTestResource):
     @falcon.before(falcon.testing.resource.set_resp_defaults)
     def on_post(self, req, resp, **kwargs):
         pass
+
+
+def as_der(public_key):
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
