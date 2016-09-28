@@ -6,11 +6,11 @@ import redis
 import rq
 
 from wsgiref import simple_server
-from gaas.resources.api import Keys, Verifications
+from gaas.resources.api import Keys, Signup, Verifications
 from gaas.models import BaseModel
 from gaas.controllers import KeyManager, UserManager
 from gaas.middleware import Authentication, TranslateJSON
-from gaas.tasks import Scheduler
+from gaas.tasks import AsyncEmail
 
 PORT = 8010
 
@@ -20,10 +20,10 @@ engine.bind(base=BaseModel)
 
 redis_connection = redis.StrictRedis()
 queue = rq.Queue(connection=redis_connection)
-scheduler = Scheduler(queue, PORT)
 
 key_manager = KeyManager(engine)
-user_manager = UserManager(engine, scheduler)
+user_manager = UserManager(engine)
+async_email = AsyncEmail(queue, user_manager, boto3, PORT)
 
 api = application = falcon.API(
     middleware=[
@@ -32,6 +32,7 @@ api = application = falcon.API(
     ]
 )
 api.add_route("/keys", Keys(key_manager))
+api.add_route("/signup", Signup(user_manager, async_email))
 api.add_route("/verify/{user_id}/{verification_code}", Verifications(user_manager))
 
 

@@ -6,13 +6,11 @@ import uuid
 from .common import AlreadyExists, persist_unique, NotSaved, NotFound
 from .validation import validate
 from ..models import User, UserName
-from gaas.tasks import Scheduler
 
 
 class UserManager:
-    def __init__(self, engine: bloop.Engine, scheduler: Scheduler):
+    def __init__(self, engine: bloop.Engine):
         self.engine = engine
-        self.scheduler = scheduler
 
     def new(self, username: str, email: str, password_hash: str) -> User:
         # 1) Validate username, email, password_hash
@@ -37,10 +35,6 @@ class UserManager:
             # XXX username was modified during creation of user id.
             # XXX username and user_id may not sync, making login impossible.
             raise NotSaved(user)
-
-        # 5) Success!  Kick of an async email with the verification_code
-        self.scheduler.send_verification_email(username.username)
-        return user
 
     def load_by_id(self, user_id) -> User:
         user_id = validate("user_id", user_id)
