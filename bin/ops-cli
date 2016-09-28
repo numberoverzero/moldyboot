@@ -1,29 +1,9 @@
 #!/usr/bin/env python
 
-import bloop
 import click
-import boto3
 import json
-import redis
-import rq
-import sys
+import requests
 from pathlib import Path
-
-from gaas.models import BaseModel
-from gaas.controllers import AlreadyExists, UserManager
-from gaas.security import passwords
-from gaas.tasks import Scheduler
-
-
-boto3.setup_default_session(profile_name="gaas-integ")
-engine = bloop.Engine()
-engine.bind(base=BaseModel)
-
-redis_connection = redis.StrictRedis()
-queue = rq.Queue(connection=redis_connection)
-scheduler = Scheduler(queue, 8010)
-
-user_manager = UserManager(engine, scheduler)
 
 
 def load_credentials(filename):
@@ -41,11 +21,8 @@ def cli():
 @click.argument("credentials_file")
 def new_user(credentials_file):
     credentials = load_credentials(credentials_file)
-    hashed = passwords.hash(credentials["password"], 12)
-    try:
-        user_manager.new(credentials["username"], credentials["email"], hashed)
-    except AlreadyExists:
-        sys.exit("username '{}' is taken".format(credentials["username"]))
+    resp = requests.post(url="", json=credentials)
+    resp.raise_for_status()
 cli.add_command(new_user)
 
 
