@@ -1,7 +1,9 @@
 import bloop
 import pytest
 
-from Crypto.PublicKey import RSA
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 from unittest.mock import Mock
 
 import gaas.controllers.key
@@ -16,7 +18,11 @@ import gaas.tasks
 @pytest.fixture(scope="session")
 def generate_key():
     """Returns a function for generating keys"""
-    return lambda bits=1024: RSA.generate(bits)
+    return lambda bits=1024: rsa.generate_private_key(
+        public_exponent=66537,
+        key_size=bits,
+        backend=default_backend()
+    )
 
 
 @pytest.fixture(scope="session")
@@ -26,7 +32,7 @@ def rsa_priv(generate_key):
 
 @pytest.fixture(scope="session")
 def rsa_pub(rsa_priv):
-    return rsa_priv.publickey()
+    return rsa_priv.public_key()
 
 
 @pytest.fixture

@@ -1,20 +1,28 @@
 import arrow
-from Crypto.PublicKey import RSA
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+from cryptography.hazmat.primitives import serialization
 from bloop import Binary, Column, DateTime, UUID
 
 from .common import BaseModel
 
 
 class PublicKeyType(Binary):
-    """Stored in Dynamo in DER.  Locally, an RSA._RSAobj"""
-    python_type = RSA._RSAobj
+    """Stored in Dynamo in DER.  Locally, an RSAPublicKey"""
+    python_type = RSAPublicKey
 
-    def dynamo_load(self, value: str, *, context=None, **kwargs):
+    def dynamo_load(self, value: str, *, context=None, **kwargs) -> RSAPublicKey:
         value = super().dynamo_load(value, context=context, **kwargs)
-        return RSA.importKey(value)
+        return serialization.load_der_public_key(
+            data=value,
+            backend=default_backend()
+        )
 
-    def dynamo_dump(self, value: RSA._RSAobj, *, context=None, **kwargs):
-        value = value.exportKey(format="DER")
+    def dynamo_dump(self, value: RSAPublicKey, *, context=None, **kwargs) -> str:
+        value = value.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
         return super().dynamo_dump(value, context=context, **kwargs)
 
 
