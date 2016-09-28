@@ -16,7 +16,7 @@ whitelist_templates = [
 
 def load(template):
     if template not in whitelist_templates:
-        raise ValueError("Unknown template")
+        raise ValueError("Unknown template {!r}".format(template))
     with open(path(template)) as file:
         return file.read()
 
