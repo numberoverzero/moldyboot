@@ -104,3 +104,23 @@ def test_get_missing(key_manager):
     with pytest.raises(NotFound):
         key_manager.get_key(user_id, key_id)
     key_manager.engine.load.assert_called_once_with(Key(user_id=user_id, key_id=key_id), consistent=True)
+
+
+def test_revoke(key_manager):
+    key = Key(user_id=uuid.uuid4(), key_id=uuid.uuid4())
+    key_manager.engine.delete.side_effect = bloop.ConstraintViolation("delete", key)
+
+    with pytest.raises(NotSaved) as excinfo:
+        key_manager.revoke(key)
+    assert excinfo.value.obj is key
+    key_manager.engine.delete.assert_called_once_with(key, atomic=True)
+
+
+def test_revoke_force(key_manager):
+    key = Key(user_id=uuid.uuid4(), key_id=uuid.uuid4())
+    key_manager.engine.delete.side_effect = bloop.ConstraintViolation("delete", key)
+
+    with pytest.raises(NotSaved) as excinfo:
+        key_manager.revoke(key, force=True)
+    assert excinfo.value.obj is key
+    key_manager.engine.delete.assert_called_once_with(key, atomic=False)

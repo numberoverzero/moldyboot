@@ -57,7 +57,7 @@ class UserManager:
             raise NotFound
         return username
 
-    def get_username_by_user_id(self, user_id: Union[str, uuid.UUID]) -> UserName:
+    def get_username_by_user_id(self, user_id: Union[str, uuid.UUID]) -> UserName:  # pragma: no cover
         user_id = validate("user_id", user_id)
         query = self.engine.query(UserName.by_user_id)\
             .key(UserName.user_id == user_id)\
@@ -79,15 +79,6 @@ class UserManager:
         except bloop.ConstraintViolation:
             raise NotSaved(user)
         return user
-
-    def delete_username(self, username: str) -> UserName:
-        username = validate("username", username)
-        username = UserName(username=username)
-        try:
-            self.engine.save(username, condition=UserName.username.is_not(None))
-        except bloop.ConstraintViolation:
-            raise NotSaved(username)
-        return username
 
     def verify(self, user: User, verification_code: str):
         code = validate("verification_code", verification_code)

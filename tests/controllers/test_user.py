@@ -15,6 +15,8 @@ valid_email = "a@b"
 valid_password_hash = bcrypt.hashpw(b"hunter2", bcrypt.gensalt(4))
 
 
+# new ============================================================================================================ new
+
 def test_new_invalid_username(user_manager):
     username = "!abc"
 
@@ -87,6 +89,8 @@ def test_new_user_success(user_manager):
     assert returned_user == expected_user
 
 
+# get_user ================================================================================================== get_user
+
 def test_get_invalid_user(user_manager):
     invalid_user_id = "not a uuid"
 
@@ -111,6 +115,8 @@ def test_get_user_success(user_manager):
     user = user_manager.get_user(user_id)
     assert user.user_id == user_id
 
+
+# get_username ========================================================================================== get_username
 
 def test_get_invalid_username(user_manager):
     invalid_username = "0af"
@@ -144,6 +150,55 @@ def test_get_username_success(user_manager):
     assert username_obj.user_id == user_id
     user_manager.engine.load.assert_any_call(UserName(username=username, user_id=user_id))
 
+
+# get_username_by_user_id ==================================================================== get_username_by_user_id
+# TODO Because bloop's new query syntax isn't released yet, there's no good way to test queries on a GSI
+# Once bloop 1.0.0 is out, the remainder of these tests can be written
+# (mostly when engine.query(...).one() raises)
+
+
+def test_get_username_by_invalid_user_id(user_manager):
+    invalid_user_id = "not a uuid"
+
+    with pytest.raises(InvalidParameter) as excinfo:
+        user_manager.get_username_by_user_id(invalid_user_id)
+    assert excinfo.value.parameter_name == "user_id"
+    user_manager.engine.query.assert_not_called()
+
+
+# delete_user ============================================================================================ delete_user
+
+def test_delete_invalid_user(user_manager):
+    invalid_user_id = "not a uuid"
+
+    with pytest.raises(InvalidParameter) as excinfo:
+        user_manager.delete_user(invalid_user_id)
+    assert excinfo.value.parameter_name == "user_id"
+    user_manager.engine.save.assert_not_called()
+
+
+def test_delete_unknown_user(user_manager):
+    user_id = uuid.uuid4()
+    expected_user = User(user_id=user_id, deleted=True)
+    user_exists = User.user_id.is_not(None)
+    user_manager.engine.save.side_effect = bloop.ConstraintViolation("save", object())
+
+    with pytest.raises(NotSaved):
+        user_manager.delete_user(user_id)
+    user_manager.engine.save.assert_called_once_with(expected_user, condition=user_exists)
+
+
+def test_delete_user_success(user_manager):
+    user_id = uuid.uuid4()
+    expected_user = User(user_id=user_id, deleted=True)
+    user_exists = User.user_id.is_not(None)
+
+    user = user_manager.delete_user(user_id)
+    user_manager.engine.save.assert_called_once_with(expected_user, condition=user_exists)
+    assert user == expected_user
+
+
+# verify ====================================================================================================== verify
 
 def test_verify_invalid_code(user_manager):
     invalid_code = "not a uuid"

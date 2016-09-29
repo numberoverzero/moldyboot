@@ -37,7 +37,7 @@ class KeyManager:
             self.refresh(key)
             return key
 
-    def list_keys(self, user_id: Union[str, uuid.UUID]) -> Sequence[Key]:
+    def list_keys(self, user_id: Union[str, uuid.UUID]) -> Sequence[Key]:  # pragma: no cover
         user_id = validate("user_id", user_id)
         return self.engine.query(Key)\
             .key(Key.user_id == user_id)\
