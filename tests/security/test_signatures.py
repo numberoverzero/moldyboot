@@ -1,3 +1,5 @@
+from typing import Optional
+
 import arrow
 import base64
 import pytest
@@ -22,7 +24,7 @@ def extract_signature(string):
     return SIGNATURE_PATTERN.match(string).groupdict()["signature"]
 
 
-def sha256(body):
+def sha256(body: Optional[str]) -> str:
     body = body or ""
     digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
     digest.update(body.encode("utf-8"))
@@ -36,7 +38,15 @@ def test_sign_fails_missing_header(rsa_priv):
     headers_to_sign = ["missing-header", "x-date", "(request-target)", "x-content-sha256", "content-length"]
     key_id = "user:some-key-id"
     with pytest.raises(BadSignature):
-        sign(method, PATH, headers, body, rsa_priv, key_id, headers_to_sign)
+        sign(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            private_key=rsa_priv,
+            id=key_id,
+            headers_to_sign=headers_to_sign
+        )
 
 
 def test_sign_populates_missing_headers(rsa_priv):
@@ -45,7 +55,15 @@ def test_sign_populates_missing_headers(rsa_priv):
     body = None
     headers_to_sign = []
     key_id = "user:some-key-id"
-    sign(method, PATH, headers, body, rsa_priv, key_id, headers_to_sign)
+    sign(
+        method=method,
+        path=PATH,
+        headers=headers,
+        body=body,
+        private_key=rsa_priv,
+        id=key_id,
+        headers_to_sign=headers_to_sign
+    )
 
     assert headers["x-content-sha256"] == sha256(body)
     assert headers["content-length"] == "0"
@@ -68,7 +86,15 @@ def test_sign_uses_provided_invalid_headers(rsa_priv):
     body = "hello"
     headers_to_sign = []
     key_id = "user:some-key-id"
-    sign(method, PATH, headers, body, rsa_priv, key_id, headers_to_sign)
+    sign(
+        method=method,
+        path=PATH,
+        headers=headers,
+        body=body,
+        private_key=rsa_priv,
+        id=key_id,
+        headers_to_sign=headers_to_sign
+    )
     assert headers["content-length"] == "not a length"
     assert headers["x-content-sha256"] == "not a b64 sha256"
     assert headers["x-date"] == "not an ISO8601 UTC date"
@@ -83,7 +109,16 @@ def test_verify_fails_missing_header(rsa_pub):
     headers_to_sign = []
     signature = sha256(body)
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=MINIMUM_SIGNED_HEADERS,
+            headers_to_sign=headers_to_sign
+        )
     assert "Request was missing required header" in str(excinfo.value)
 
 
@@ -99,7 +134,16 @@ def test_verify_fails_missing_signed_header(rsa_pub):
     signed_headers = MINIMUM_SIGNED_HEADERS[:-1]
     signature = sha256(body)
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, signed_headers, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=signed_headers,
+            headers_to_sign=headers_to_sign
+        )
     assert "Signature did not include all required headers" in str(excinfo.value)
 
 
@@ -113,7 +157,16 @@ def test_verify_fails_expired_date(rsa_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=MINIMUM_SIGNED_HEADERS,
+            headers_to_sign=headers_to_sign
+        )
     assert "x-date not within 5 minutes of current time" in str(excinfo.value)
 
 
@@ -127,7 +180,16 @@ def test_verify_fails_invalid_date(rsa_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=MINIMUM_SIGNED_HEADERS,
+            headers_to_sign=headers_to_sign
+        )
     assert "x-date must be ISO8601 UTC" in str(excinfo.value)
 
 
@@ -141,7 +203,16 @@ def test_verify_fails_wrong_body_sha(rsa_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=MINIMUM_SIGNED_HEADERS,
+            headers_to_sign=headers_to_sign
+        )
     message = str(excinfo.value)
     assert "x-content-sha256 mismatch" in message
     assert sha256("") in message
@@ -158,7 +229,16 @@ def test_verify_fails_wrong_body_length(rsa_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=MINIMUM_SIGNED_HEADERS,
+            headers_to_sign=headers_to_sign
+        )
     message = str(excinfo.value)
     assert "content-length mismatch" in message
     assert "2" in message
@@ -175,7 +255,16 @@ def test_verify_fails_invalid_body_length(rsa_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=MINIMUM_SIGNED_HEADERS,
+            headers_to_sign=headers_to_sign
+        )
     assert "content-length must be an integer" == str(excinfo.value)
 
 
@@ -189,7 +278,16 @@ def test_verify_fails_bad_signature(rsa_pub):
     headers_to_sign = []
     signature = sha256("")
     with pytest.raises(BadSignature) as excinfo:
-        verify(method, PATH, headers, body, rsa_pub, signature, MINIMUM_SIGNED_HEADERS, headers_to_sign)
+        verify(
+            method=method,
+            path=PATH,
+            headers=headers,
+            body=body,
+            public_key=rsa_pub,
+            signature=signature,
+            signed_headers=MINIMUM_SIGNED_HEADERS,
+            headers_to_sign=headers_to_sign
+        )
     assert "Signatures do not match." in str(excinfo.value)
 
 
@@ -204,9 +302,26 @@ def test_sign_and_verify(rsa_priv, rsa_pub):
     headers_to_sign = []
     key_id = "user:key-id"
 
-    sign(method, path, headers, body, rsa_priv, key_id, headers_to_sign)
+    sign(
+        method=method,
+        path=path,
+        headers=headers,
+        body=body,
+        private_key=rsa_priv,
+        id=key_id,
+        headers_to_sign=headers_to_sign
+    )
 
     signature = extract_signature(headers["authorization"])
     signed_headers = extract_signed_headers(headers["authorization"])
 
-    verify(method, path, headers, body, rsa_pub, signature, signed_headers, headers_to_sign)
+    verify(
+        method=method,
+        path=path,
+        headers=headers,
+        body=body,
+        public_key=rsa_pub,
+        signature=signature,
+        signed_headers=signed_headers,
+        headers_to_sign=headers_to_sign
+    )

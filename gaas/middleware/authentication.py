@@ -35,10 +35,14 @@ def authenticate_signature(method, path, headers, body, headers_to_sign, key_man
     # 3) Check signature
     try:
         signatures.verify(
-            method, path, headers, body,
-            key.public, authentication["signature"],
-            authentication["headers"].split(" "),
-            headers_to_sign)
+            method=method,
+            path=path,
+            headers=headers,
+            body=body,
+            public_key=key.public,
+            signature=authentication["signature"],
+            signed_headers=authentication["headers"].split(" "),
+            headers_to_sign=headers_to_sign)
     except signatures.BadSignature as exception:
         fail("Signature validation failed: {}".format(exception.args[0]))
 
@@ -54,7 +58,7 @@ def authenticate_password(username, password, user_manager: UserManager):
         fail("Invalid username/password")
     # 2) Compare passwords
     try:
-        passwords.check(password, user.password_hash)
+        passwords.check(password=password, expected_hash=user.password_hash)
     except passwords.BadPassword:
         fail("Invalid username/password")
     # Success! Return user_id of the user that just authenticated

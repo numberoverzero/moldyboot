@@ -71,9 +71,9 @@ def test_on_post_success(mock_user_manager, mock_async_tasks, monkeypatch):
 
     mock_user_manager.new.return_value = User(user_id=uuid.uuid4())
 
-    def mock_hash(password, salt_length):
+    def mock_hash(*, password, rounds):
         assert password == body["password"]
-        assert salt_length >= 12
+        assert rounds >= 12
         return "some hash"
     monkeypatch.setattr(passwords, "hash", mock_hash)
 

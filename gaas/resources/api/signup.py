@@ -28,7 +28,7 @@ class Signup:
         except KeyError:
             raise falcon.HTTPBadRequest("Missing required parameter", "Must provide an email")
 
-        hashed = passwords.hash(password, 12)
+        hashed = passwords.hash(password=password, rounds=passwords.DEFAULT_SALT_ROUNDS)
 
         try:
             user = self.user_manager.new(username, email, hashed)

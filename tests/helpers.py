@@ -86,7 +86,14 @@ def signed_request(
         private_key: Optional[RSAPrivateKey]=None,
         key_id: Optional[str]=None) -> falcon.Request:
     headers = headers or dict()
-    signatures.sign(method, uri, headers, body, private_key, key_id)
+    signatures.sign(
+        method=method,
+        path=uri,
+        headers=headers,
+        body=body,
+        private_key=private_key,
+        id=key_id
+    )
     return request(method, uri, headers, body)
 
 

@@ -65,8 +65,13 @@ class SignedAuth(requests.auth.AuthBase):
 
     def __call__(self, request: requests.PreparedRequest) -> requests.PreparedRequest:
         sign(
-            request.method, request.path_url, request.headers, request.body,
-            self.client.key, self.client.key_id)
+            method=request.method,
+            path=request.path_url,
+            headers=request.headers,
+            body=request.body,
+            private_key=self.client.key,
+            id=self.client.key_id
+        )
         return request
 
 

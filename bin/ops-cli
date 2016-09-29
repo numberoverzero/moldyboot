@@ -42,7 +42,7 @@ def create_user(ctx: click.Context, file, username, email, password):
             raise click.BadParameter("Credentials file missing password.")
         if not email:
             raise click.BadParameter("Credentials file missing email.")
-    password_hash = passwords.hash(password, passwords.DEFAULT_SALT_LENGTH)
+    password_hash = passwords.hash(password=password, rounds=passwords.DEFAULT_SALT_ROUNDS)
 
     try:
         user = user_manager.new(username, email, password_hash)

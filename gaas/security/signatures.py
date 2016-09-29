@@ -8,7 +8,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
-from typing import Sequence, Dict, Optional
+from typing import Sequence, Dict, Optional, MutableSequence
 
 __all__ = ["sign", "verify"]
 
@@ -20,7 +20,8 @@ class BadSignature(Exception):
     pass
 
 
-def sign(method: str,
+def sign(*,
+         method: str,
          path: str,
          headers: Dict,
          body: Optional[str],
@@ -33,7 +34,7 @@ def sign(method: str,
     headers in this dictionary in the signed request.
     """
     method = method.lower()
-    headers_to_sign = headers_to_sign or []
+    headers_to_sign = (headers_to_sign or [])[:]
     # 1) The list of headers to sign must include the minimum signing headers
     _ensure_minimum_headers(headers_to_sign)
     # 2) The minimum headers can always be populated automatically
@@ -54,22 +55,22 @@ def sign(method: str,
     _insert_authorization_header(headers, headers_to_sign, signature, id)
 
 
-def verify(
-        method: str,
-        path: str,
-        headers: Dict,
-        body: Optional[str],
-        public_key: RSAPublicKey,
-        signature: str,
-        signed_headers: Sequence[str],
-        headers_to_sign: Optional[Sequence[str]]=None):
+def verify(*,
+           method: str,
+           path: str,
+           headers: Dict,
+           body: Optional[str],
+           public_key: RSAPublicKey,
+           signature: str,
+           signed_headers: Sequence[str],
+           headers_to_sign: Optional[Sequence[str]]=None):
     """
     Throws BadSignature with detailed info if any part of the signature
     verification fails.
     """
     now = arrow.now()
     method = method.lower()
-    headers_to_sign = headers_to_sign or []
+    headers_to_sign = (headers_to_sign or [])[:]
     # 1) The list of headers to sign must include the minimum signing headers
     _ensure_minimum_headers(headers_to_sign)
     # 2) Raise if any additional headers to sign are missing, or the signed headers don't include the headers to sign
@@ -94,19 +95,22 @@ def verify(
         raise BadSignature("Signatures do not match.")
 
 
-def _ensure_minimum_headers(headers_to_sign):
+def _ensure_minimum_headers(headers_to_sign: MutableSequence[str]):
     for header in _MINIMUM_HEADERS:
         if header not in headers_to_sign:
             headers_to_sign.append(header)
 
 
-def _populate_missing_headers(headers: Dict[str, str], body: str):
+def _populate_missing_headers(headers: Dict[str, str], body: Optional[str]=None):
     headers.setdefault("x-date", arrow.now().to("utc").isoformat())
     headers.setdefault("content-length", str(0 if not body else len(body)))
     headers.setdefault("x-content-sha256", _compute_body_hash(body))
 
 
-def _check_missing_headers(headers, headers_to_sign, signed_headers=None):
+def _check_missing_headers(
+        headers: Dict[str, str],
+        headers_to_sign: Sequence[str],
+        signed_headers: Optional[Sequence[str]]=None):
     signed_headers = signed_headers or headers_to_sign
     for header in headers_to_sign:
         if header == "(request-target)":
@@ -144,7 +148,7 @@ def _build_signing_string(
     return "\n".join(pieces).encode("utf-8")
 
 
-def _build_request_target(method: str, path: str):
+def _build_request_target(method: str, path: str) -> str:
     parts = uritools.urisplit(path)
     if parts.query:
         target = parts.path + "?" + parts.query

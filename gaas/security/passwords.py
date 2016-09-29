@@ -2,14 +2,14 @@ import bcrypt
 from typing import Union
 
 
-DEFAULT_SALT_LENGTH = 12
+DEFAULT_SALT_ROUNDS = 12
 
 
 class BadPassword(Exception):
     pass
 
 
-def hash(password: Union[str, bytes], rounds):
+def hash(*, password: Union[str, bytes], rounds: int) -> bytes:
     if rounds < 12:
         raise BadPassword("Tried to generate weak salt with < 12 rounds")
     if isinstance(password, str):
@@ -18,7 +18,7 @@ def hash(password: Union[str, bytes], rounds):
     return hashed
 
 
-def check(password: Union[str, bytes], expected_hash: Union[str, bytes]):
+def check(*, password: Union[str, bytes], expected_hash: Union[str, bytes]):
     if isinstance(password, str):
         password = password.encode("utf-8")
     if isinstance(expected_hash, str):

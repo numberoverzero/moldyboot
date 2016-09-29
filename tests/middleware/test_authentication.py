@@ -49,7 +49,14 @@ def valid_request(rsa_priv):
     }
     user_id, key_id = uuid.uuid4(), uuid.uuid4()
     id = "{}@{}".format(user_id, key_id)
-    sign(method, path, headers, body, rsa_priv, id)
+    sign(
+        method=method,
+        path=path,
+        headers=headers,
+        body=body,
+        private_key=rsa_priv,
+        id=id
+    )
     return method, path, body, headers, user_id, key_id
 
 
@@ -81,7 +88,14 @@ def test_authenticate_signature_invalid_id_format(rsa_priv, mock_key_manager):
         "x-content-sha256": sha256(body)
     }
     key_id = "wrong-separator"
-    sign(method, path, headers, body, rsa_priv, key_id)
+    sign(
+        method=method,
+        path=path,
+        headers=headers,
+        body=body,
+        private_key=rsa_priv,
+        id=key_id
+    )
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
@@ -100,7 +114,14 @@ def test_authenticate_signature_invalid_param(rsa_priv, mock_key_manager):
     }
     key_uuid = uuid.uuid4()
     key_id = "bad-format@{}".format(key_uuid)
-    sign(method, path, headers, body, rsa_priv, key_id)
+    sign(
+        method=method,
+        path=path,
+        headers=headers,
+        body=body,
+        private_key=rsa_priv,
+        id=key_id
+    )
     mock_key_manager.load.side_effect = InvalidParameter("user_id", "bad-format", "test message")
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
@@ -170,7 +191,7 @@ def test_authenticate_password_user_missing(mock_user_manager):
 def test_authenticate_password_wrong_password(mock_user_manager):
     username = "abc"
     password = "hunter2"
-    wrong_hash = hash("*******", 12)
+    wrong_hash = hash(password="*******", rounds=12)
 
     mock_user_manager.load_by_name.return_value = User(user_id=uuid.uuid4(), password_hash=wrong_hash)
 
@@ -183,7 +204,7 @@ def test_authenticate_password_wrong_password(mock_user_manager):
 def test_authenticate_password_success(mock_user_manager):
     username = "abc"
     password = "hunter2"
-    correct_hash = hash(password, 12)
+    correct_hash = hash(password=password, rounds=12)
     user = User(user_id=uuid.uuid4(), password_hash=correct_hash)
 
     mock_user_manager.load_by_name.return_value = user
@@ -208,7 +229,7 @@ def test_authentication_middleware_bypass(mock_key_manager, mock_user_manager):
 def test_authentication_middleware_basic_success(mock_key_manager, mock_user_manager):
     """Resource can use (pseudo) Basic Authentication with an explicit tag"""
     username, password = "abcUser", "|-|unterZ"
-    correct_hash = passwords.hash(password, 12)
+    correct_hash = passwords.hash(password=password, rounds=12)
     user = User(user_id=uuid.uuid4(), password_hash=correct_hash)
 
     req = request(body={"username": username, "password": password})
@@ -226,7 +247,7 @@ def test_authentication_middleware_basic_success(mock_key_manager, mock_user_man
 def test_authentication_middleware_unverified(mock_key_manager, mock_user_manager):
     """Users that haven't verified their email accounts fail authentication"""
     username, password = "abcUser", "|-|unterZ"
-    correct_hash = passwords.hash(password, 12)
+    correct_hash = passwords.hash(password=password, rounds=12)
     user = User(user_id=uuid.uuid4(), password_hash=correct_hash, verification_code=uuid.uuid4())
 
     req = request(body={"username": username, "password": password})

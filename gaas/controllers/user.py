@@ -14,7 +14,7 @@ class UserManager:
     def __init__(self, engine: bloop.Engine):
         self.engine = engine
 
-    def new(self, username: str, email: str, password_hash: str) -> User:
+    def new(self, username: str, email: str, password_hash: Union[str, bytes]) -> User:
         # 1) Validate username, email, password_hash
         username = validate("username", username)
         email = validate("email", email)
