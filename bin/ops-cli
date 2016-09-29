@@ -96,7 +96,7 @@ def delete_user(ctx, username, user_id):
     deleted = busy_poll(job)
     if deleted is TIMED_OUT:
         ctx.fail("timed out waiting to delete username {!r}".format(username))
-    click.echo("deleted username {!r} user_id {!r}".format(deleted["username"], deleted["user_id"]))
+    click.echo(str(deleted["user_id"]))
 cli.add_command(delete_user)
 
 

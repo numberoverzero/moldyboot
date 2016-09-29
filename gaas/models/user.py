@@ -12,7 +12,6 @@ class UserName(BaseModel):
     username = Column(String, hash_key=True, name="n")
     user_id = Column(UUID, name="u")
     created = Column(DateTime, name="c")
-    deleted = Column(Boolean, name="d")
 
     by_user_id = GlobalSecondaryIndex(
         projection="keys_only", hash_key="user_id", name="by_u")

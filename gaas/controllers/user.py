@@ -82,7 +82,7 @@ class UserManager:
 
     def delete_username(self, username: str) -> UserName:
         username = validate("username", username)
-        username = UserName(username=username, deleted=True)
+        username = UserName(username=username)
         try:
             self.engine.save(username, condition=UserName.username.is_not(None))
         except bloop.ConstraintViolation:
