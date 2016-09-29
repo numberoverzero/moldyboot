@@ -35,6 +35,7 @@ class UserManager:
             # XXX username was modified during creation of user id.
             # XXX username and user_id may not sync, making login impossible.
             raise NotSaved(user)
+        return user
 
     def load_by_id(self, user_id) -> User:
         user_id = validate("user_id", user_id)
