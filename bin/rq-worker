@@ -3,13 +3,13 @@
 import logging
 import rq
 
-from gaas.config import api_endpoint, session, user_manager, queue
+from gaas.config import api_endpoint, session, key_manager, user_manager, queue
 from gaas.tasks import RedisContext
 
 logger = logging.getLogger(__name__)
 
 # Inject dependencies for worker threads =============================================================================
-RedisContext.initialize(user_manager, session, api_endpoint)
+RedisContext.initialize(user_manager, key_manager, session, api_endpoint)
 
 
 # Retries ============================================================================================================
