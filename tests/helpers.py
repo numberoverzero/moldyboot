@@ -1,3 +1,5 @@
+from typing import Optional, Dict, List, Union
+
 import falcon
 import falcon.testing
 import falcon.testing.resource
@@ -7,12 +9,17 @@ import sys
 import uritools
 
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 
 from gaas.middleware import BodyWrapper
 from gaas.security import signatures
 
 
-def build_env(method="GET", uri="/", headers=None, body=""):
+def build_env(
+        method: Optional[str]="GET",
+        uri: Optional[str]="/",
+        headers: Optional[Dict[str, str]]=None,
+        body: Optional[Union[str, List, Dict]]="") -> Dict:
     uri = uritools.urisplit(uri)
     path = uri.path
     query = uri.query or ""
@@ -58,7 +65,12 @@ def build_env(method="GET", uri="/", headers=None, body=""):
     return env
 
 
-def request(method="GET", uri="/", headers=None, body="", inject_body_context=True):
+def request(
+        method: Optional[str]="GET",
+        uri: Optional[str]="/",
+        headers: Optional[Dict[str, str]]=None,
+        body: Optional[Union[str, List, Dict]]="",
+        inject_body_context: Optional[bool]=True) -> falcon.Request:
     """If inject_body_context, set req.context["body"] to a BodyWrapper, as TranslateJSON would"""
     req = falcon.Request(build_env(method, uri, headers, body))
     if inject_body_context:
@@ -66,13 +78,19 @@ def request(method="GET", uri="/", headers=None, body="", inject_body_context=Tr
     return req
 
 
-def signed_request(method="GET", uri="/", headers=None, body="", private_key=None, key_id=None):
+def signed_request(
+        method: Optional[str]="GET",
+        uri: Optional[str]="/",
+        headers: Optional[Dict[str, str]]=None,
+        body: Optional[str]="",
+        private_key: Optional[RSAPrivateKey]=None,
+        key_id: Optional[str]=None) -> falcon.Request:
     headers = headers or dict()
     signatures.sign(method, uri, headers, body, private_key, key_id)
     return request(method, uri, headers, body)
 
 
-def response():
+def response() -> falcon.Response:
     return falcon.Response()
 
 
@@ -83,7 +101,7 @@ class MockResource(falcon.testing.SimpleTestResource):
         pass
 
 
-def as_der(public_key):
+def as_der(public_key: RSAPublicKey) -> bytes:
     return public_key.public_bytes(
         encoding=serialization.Encoding.DER,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
