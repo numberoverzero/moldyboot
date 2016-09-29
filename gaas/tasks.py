@@ -9,6 +9,8 @@ __all__ = ["AsyncTasks"]
 
 
 class Result:
+    empty = None
+
     def __init__(self, *, value, error):
         self._value = value
         self._error = error

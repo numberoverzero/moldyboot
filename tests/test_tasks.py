@@ -5,7 +5,7 @@ import uuid
 from gaas.config import api_endpoint
 from gaas.controllers import InvalidParameter, NotFound
 from gaas.models import User, UserName
-from gaas.tasks import AsyncTasks, RedisContext, _send_verification
+from gaas.tasks import AsyncTasks, RedisContext, Result, _send_verification
 from gaas.templates import render
 
 from unittest.mock import Mock
@@ -40,6 +40,29 @@ def redis_context(mock_user_manager, mock_key_manager, boto3_session):
 def clear_redis_context():
     yield
     RedisContext.singleton = None
+
+
+def test_result_of():
+    sentinel = object()
+    result = Result.of(sentinel)
+    assert result.value is sentinel
+
+
+def test_result_empty():
+    assert Result.empty.value is None
+
+
+def test_result_failed_default():
+    result = Result.failed()
+    with pytest.raises(RuntimeError):
+        getattr(result, "value")
+
+
+def test_result_failed_custom():
+    result = Result.failed(ValueError("hello"))
+    with pytest.raises(ValueError) as excinfo:
+        getattr(result, "value")
+    assert excinfo.value.args == ("hello", )
 
 
 def test_double_context_initialize(mock_user_manager, mock_key_manager, boto3_session):
