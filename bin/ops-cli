@@ -97,8 +97,32 @@ def delete_user(ctx, username, user_id):
     if deleted is TIMED_OUT:
         ctx.fail("timed out waiting to delete username {!r}".format(username))
     click.echo("deleted username {!r} user_id {!r}".format(deleted["username"], deleted["user_id"]))
-
 cli.add_command(delete_user)
+
+
+@click.command("vu")
+@click.option("--username", "-u", default=None, type=str, help="Username to verify.")
+@click.option("--user-id", "-id", default=None, type=str, help="User id to verify.")
+@click.pass_context
+def verify_user(ctx, username, user_id):
+    if not username and not user_id:
+        raise click.BadParameter("must provide either username or user id")
+    elif username and user_id:
+        raise click.BadParameter("must provide only one of username or user id")
+    if username:
+        try:
+            user_id = user_manager.get_username(username).user_id
+        except NotFound:
+            ctx.fail("couldn't find the username {!r}".format(username))
+    try:
+        user = user_manager.get_user(user_id)
+    except NotFound:
+        ctx.fail("couldn't find the user id {!r}".format(user_id))
+    try:
+        user_manager.verify(user, user.verification_code)
+    except NotSaved:
+        ctx.fail("failed to verify user id {!r}".format(user_id))
+cli.add_command(verify_user)
 
 
 if __name__ == "__main__":
