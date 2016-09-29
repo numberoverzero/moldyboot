@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import click
 import json
-import requests
 
-from gaas.config import api_endpoint
+from gaas.config import api_endpoint, user_manager
+from gaas.controllers import AlreadyExists, NotSaved
+from gaas.security import passwords
 
 
 def url_for(resource: str) -> str:
@@ -26,36 +27,53 @@ def cli():
 @click.option("--username", "-u", "-n", default=None, type=str, help="New username.")
 @click.option("--email", "-e", default=None, type=str, help="New user's email.")
 @click.option("--password", "-p", default=None, type=str, help="New user's password.")
-def create_user(file, username, email, password):
+@click.pass_context
+def create_user(ctx: click.Context, file, username, email, password):
     if not file and not (username and email and password):
         raise click.BadParameter("Must provide either file or name, email, and password.")
     if file:
         credentials = json.load(file)
+        username = credentials.get("username", None)
+        password = credentials.get("password", None)
+        email = credentials.get("email", None)
+        if not username:
+            raise click.BadParameter("Credentials file missing username.")
+        if not password:
+            raise click.BadParameter("Credentials file missing password.")
+        if not email:
+            raise click.BadParameter("Credentials file missing email.")
+    password_hash = passwords.hash(password, passwords.DEFAULT_SALT_LENGTH)
+
+    try:
+        user = user_manager.new(username, email, password_hash)
+    except AlreadyExists:
+        ctx.fail("Username {!r} is already taken".format(username))
+    except NotSaved as exc:
+        user = exc.obj
+        ctx.fail("Unexpected error creating user {!r}; last attempted user_id was {!r}".format(
+            username, getattr(user, "user_id", "<UNKNOWN>")
+        ))
     else:
-        credentials = {
-            "username": username,
-            "email": email,
-            "password": password
-        }
-    resp = requests.post(url=url_for("/signup"), json=credentials)
-    resp.raise_for_status()
+        click.echo(str(user.user_id))
 cli.add_command(create_user)
 
 
 @click.command("du")
 @click.option("--username", "-u", default=None, type=str, help="Username to delete.")
-@click.option("--userid", "-id", default=None, type=str, help="User id to delete.")
+@click.option("--user-id", "-id", default=None, type=str, help="User id to delete.")
 @click.option("--yes", "-y", is_flag=True, callback=abort_if_false, expose_value=False,
               prompt="Are you sure you want to delete the user?")
-def delete_user(username, userid):
-    if not username and not userid:
+def delete_user(username, user_id):
+    if not username and not user_id:
         raise click.BadParameter("Must provide either username or user id")
-    elif username and userid:
+    elif username and user_id:
         raise click.BadParameter("Must provide only one of username or user id")
     if username:
         pass
     else:
         pass
+cli.add_command(delete_user)
+
 
 if __name__ == "__main__":
     cli()

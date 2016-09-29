@@ -8,7 +8,6 @@ from gaas.controllers import KeyManager, UserManager
 from gaas.models import BaseModel
 from gaas.tasks import AsyncTasks
 
-
 api_endpoint = urllib.parse.urlsplit("http://127.0.0.1:8010")
 console_endpoint = urllib.parse.urlsplit("http://127.0.0.1:8020")
 redis_port = 6379
