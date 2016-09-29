@@ -26,14 +26,14 @@ class RedisContext:
 
     @classmethod
     def initialize(cls, user_manager: UserManager, session: boto3.session.Session, endpoint: urllib.parse.SplitResult):
-        if cls.singleton is not None:  # pragma: no cover
-            raise ValueError("Tried to initialize redis context twice")
+        if cls.singleton is not None:
+            raise RuntimeError("Tried to initialize redis context twice")
         cls.singleton = cls(user_manager=user_manager, session=session, endpoint=endpoint)
 
 
 def _get_context() -> RedisContext:
     if RedisContext.singleton is None:
-        raise ValueError("Tried to get redis context before it was initialized")
+        raise RuntimeError("Tried to get redis context before it was initialized")
     return RedisContext.singleton
 
 

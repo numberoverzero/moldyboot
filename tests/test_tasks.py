@@ -29,8 +29,23 @@ def async_tasks(queue):
 @pytest.yield_fixture
 def redis_context(mock_user_manager, boto3_session):
     RedisContext.initialize(mock_user_manager, boto3_session, api_endpoint)
-    yield RedisContext.singleton
+
+
+@pytest.yield_fixture(autouse=True)
+def clear_redis_context():
+    yield
     RedisContext.singleton = None
+
+
+def test_double_context_initialize(mock_user_manager, boto3_session):
+    RedisContext.initialize(mock_user_manager, boto3_session, api_endpoint)
+    with pytest.raises(RuntimeError):
+        RedisContext.initialize(mock_user_manager, boto3_session, api_endpoint)
+
+
+def test_not_initialized():
+    with pytest.raises(RuntimeError):
+        _send_verification("user")
 
 
 def test_scheduler_send_email(async_tasks, queue):
