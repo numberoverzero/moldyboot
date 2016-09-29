@@ -41,8 +41,8 @@ def mock_engine():
 
 
 @pytest.fixture
-def mock_scheduler():
-    return Mock(spec=gaas.tasks.Scheduler)
+def mock_async_tasks():
+    return Mock(spec=gaas.tasks.AsyncTasks)
 
 
 @pytest.fixture
@@ -61,8 +61,8 @@ def key_manager(mock_engine):
 
 
 @pytest.fixture
-def user_manager(mock_engine, mock_scheduler):
-    return gaas.controllers.user.UserManager(mock_engine, mock_scheduler)
+def user_manager(mock_engine):
+    return gaas.controllers.user.UserManager(mock_engine)
 
 
 @pytest.fixture
