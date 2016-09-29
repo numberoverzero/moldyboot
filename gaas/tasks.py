@@ -8,20 +8,15 @@ from . import templates
 __all__ = ["AsyncTasks"]
 
 
-def apply(func, it):
-    for x in it:
-        func(x)
-
-
 class AsyncTasks:
     def __init__(self, queue: rq.Queue):
         self.queue = queue
 
     def send_verification(self, username: str):
-        self.queue.enqueue(_send_verification, username)
+        return self.queue.enqueue(_send_verification, username)
 
     def delete_user(self, username: str):
-        self.queue.enqueue(_delete_user, username)
+        return self.queue.enqueue(_delete_user, username)
 
 
 class RedisContext:
@@ -136,4 +131,4 @@ def _delete_user(username: str):
             # TODO log failure
             continue
 
-    apply(keys.revoke, keys.list_keys(user.user_id))
+    return {"username": username.username, "user_id": user.user_id}

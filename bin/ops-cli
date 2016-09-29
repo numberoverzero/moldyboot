@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import click
 import json
+import time
 
-from gaas.config import api_endpoint, user_manager
-from gaas.controllers import AlreadyExists, NotSaved
+from gaas.config import api_endpoint, async_tasks, user_manager
+from gaas.controllers import AlreadyExists, NotFound, NotSaved
 from gaas.security import passwords
 
 
@@ -15,6 +16,14 @@ def url_for(resource: str) -> str:
 def abort_if_false(ctx, param, value):
     if not value:
         ctx.abort()
+
+
+def busy_poll(job, timeout=10):
+    while timeout > 0:
+        if job.result is not None:
+            return job.result
+        time.sleep(0.2)
+    return None
 
 
 @click.group()
@@ -30,27 +39,27 @@ def cli():
 @click.pass_context
 def create_user(ctx: click.Context, file, username, email, password):
     if not file and not (username and email and password):
-        raise click.BadParameter("Must provide either file or name, email, and password.")
+        raise click.BadParameter("must provide either file or name, email, and password.")
     if file:
         credentials = json.load(file)
         username = credentials.get("username", None)
         password = credentials.get("password", None)
         email = credentials.get("email", None)
         if not username:
-            raise click.BadParameter("Credentials file missing username.")
+            raise click.BadParameter("credentials file missing username.")
         if not password:
-            raise click.BadParameter("Credentials file missing password.")
+            raise click.BadParameter("credentials file missing password.")
         if not email:
-            raise click.BadParameter("Credentials file missing email.")
+            raise click.BadParameter("credentials file missing email.")
     password_hash = passwords.hash(password=password, rounds=passwords.DEFAULT_SALT_ROUNDS)
 
     try:
         user = user_manager.new(username, email, password_hash)
     except AlreadyExists:
-        ctx.fail("Username {!r} is already taken".format(username))
+        ctx.fail("username {!r} is already taken".format(username))
     except NotSaved as exc:
         user = exc.obj
-        ctx.fail("Unexpected error creating user {!r}; last attempted user_id was {!r}".format(
+        ctx.fail("unexpected error creating user {!r}; last attempted user_id was {!r}".format(
             username, getattr(user, "user_id", "<UNKNOWN>")
         ))
     else:
@@ -63,15 +72,23 @@ cli.add_command(create_user)
 @click.option("--user-id", "-id", default=None, type=str, help="User id to delete.")
 @click.option("--yes", "-y", is_flag=True, callback=abort_if_false, expose_value=False,
               prompt="Are you sure you want to delete the user?")
-def delete_user(username, user_id):
+@click.pass_context
+def delete_user(ctx, username, user_id):
     if not username and not user_id:
-        raise click.BadParameter("Must provide either username or user id")
+        raise click.BadParameter("must provide either username or user id")
     elif username and user_id:
-        raise click.BadParameter("Must provide only one of username or user id")
-    if username:
-        pass
-    else:
-        pass
+        raise click.BadParameter("must provide only one of username or user id")
+    if user_id:
+        try:
+            username = user_manager.get_username_by_user_id(user_id).username
+        except NotFound:
+            ctx.fail("couldn't find the username for user id {!r}".format(user_id))
+    job = async_tasks.delete_user(username)
+    deleted = busy_poll(job)
+    if deleted is None:
+        ctx.fail("failed to delete user with username {!r}".format(username))
+    click.echo("deleted username {!r} user_id {!r}".format(deleted["username"], deleted["user_id"]))
+
 cli.add_command(delete_user)
 
 
