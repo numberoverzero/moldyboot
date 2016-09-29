@@ -137,7 +137,7 @@ def _delete_user(username: str):
         user_id = users.get_username(username).user_id
     except InvalidParameter as e:
         return Result.failed(e)
-    except NotSaved:
+    except NotFound:
         # TODO log failure
         # Not worth retrying, since the user doesn't exist
         return Result.failed(RuntimeError("Unknown username {!r}".format(username)))
@@ -145,8 +145,6 @@ def _delete_user(username: str):
     # 1) Tombstone the User, preventing system-side actions
     try:
         users.delete_user(user_id)
-    except InvalidParameter as e:
-        return Result.failed(e)
     except NotSaved:
         # TODO log failure
         # Don't keep going, something's wrong.
