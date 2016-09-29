@@ -1,9 +1,15 @@
 #!/usr/bin/env python
-
 import click
 import json
 import requests
 from pathlib import Path
+
+from gaas.config import api_endpoint, api_port
+
+
+def url_for(resource: str) -> str:
+    assert resource.startswith("/")
+    return "{}:{}{}".format(api_endpoint, api_port, resource)
 
 
 def load_credentials(filename):
@@ -21,7 +27,7 @@ def cli():
 @click.argument("credentials_file")
 def new_user(credentials_file):
     credentials = load_credentials(credentials_file)
-    resp = requests.post(url="", json=credentials)
+    resp = requests.post(url=url_for("/signup"), json=credentials)
     resp.raise_for_status()
 cli.add_command(new_user)
 
