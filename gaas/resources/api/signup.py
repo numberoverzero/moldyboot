@@ -3,13 +3,13 @@ import falcon
 from ..meta import tag
 from ...security import passwords
 from ...controllers import AlreadyExists, UserManager
-from ...tasks import AsyncEmail
+from ...tasks import AsyncTasks
 
 
 class Signup:
-    def __init__(self, user_manager: UserManager, async_email: AsyncEmail):
+    def __init__(self, user_manager: UserManager, async_tasks: AsyncTasks):
         self.user_manager = user_manager
-        self.async_email = async_email
+        self.async_tasks = async_tasks
 
     @tag("authentication-skip")
     def on_post(self, req: falcon.Request, resp: falcon.Response):
@@ -35,8 +35,7 @@ class Signup:
         except AlreadyExists:
             raise falcon.HTTPBadRequest("Invalid parameter", "Username {!r} is taken".format(username))
 
-        # Async send
-        self.async_email.send_verification(username)
+        self.async_tasks.send_verification(username)
 
         req.context["response"] = {"user_id": str(user.user_id)}
         resp.status = falcon.HTTP_200
