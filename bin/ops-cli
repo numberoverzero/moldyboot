@@ -4,12 +4,12 @@ import json
 import requests
 from pathlib import Path
 
-from gaas.config import api_endpoint, api_port
+from gaas.config import api_endpoint
 
 
 def url_for(resource: str) -> str:
     assert resource.startswith("/")
-    return "{}:{}{}".format(api_endpoint, api_port, resource)
+    return api_endpoint.geturl() + resource
 
 
 def load_credentials(filename):
