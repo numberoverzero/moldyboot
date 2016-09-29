@@ -2,7 +2,6 @@
 import click
 import json
 import requests
-from pathlib import Path
 
 from gaas.config import api_endpoint
 
@@ -12,10 +11,9 @@ def url_for(resource: str) -> str:
     return api_endpoint.geturl() + resource
 
 
-def load_credentials(filename):
-    path = Path(filename).expanduser()
-    with path.open(mode="r") as file:
-        return json.loads(file.read())
+def abort_if_false(ctx, param, value):
+    if not value:
+        ctx.abort()
 
 
 @click.group()
@@ -24,13 +22,40 @@ def cli():
 
 
 @click.command("cu")
-@click.argument("credentials_file")
-def new_user(credentials_file):
-    credentials = load_credentials(credentials_file)
+@click.option("--file", "-f", default=None, type=click.File("r"), help="JSON file with new user creds.")
+@click.option("--username", "-u", "-n", default=None, type=str, help="New username.")
+@click.option("--email", "-e", default=None, type=str, help="New user's email.")
+@click.option("--password", "-p", default=None, type=str, help="New user's password.")
+def create_user(file, username, email, password):
+    if not file and not (username and email and password):
+        raise click.BadParameter("Must provide either file or name, email, and password.")
+    if file:
+        credentials = json.load(file)
+    else:
+        credentials = {
+            "username": username,
+            "email": email,
+            "password": password
+        }
     resp = requests.post(url=url_for("/signup"), json=credentials)
     resp.raise_for_status()
-cli.add_command(new_user)
+cli.add_command(create_user)
 
+
+@click.command("du")
+@click.option("--username", "-u", default=None, type=str, help="Username to delete.")
+@click.option("--userid", "-id", default=None, type=str, help="User id to delete.")
+@click.option("--yes", "-y", is_flag=True, callback=abort_if_false, expose_value=False,
+              prompt="Are you sure you want to delete the user?")
+def delete_user(username, userid):
+    if not username and not userid:
+        raise click.BadParameter("Must provide either username or user id")
+    elif username and userid:
+        raise click.BadParameter("Must provide only one of username or user id")
+    if username:
+        pass
+    else:
+        pass
 
 if __name__ == "__main__":
     cli()
