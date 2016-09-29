@@ -18,15 +18,15 @@ class Signup:
         try:
             username = body["username"]
         except KeyError:
-            raise falcon.HTTPBadRequest("Invalid parameter", "Must provide a username")
+            raise falcon.HTTPBadRequest("Missing required parameter", "Must provide a username")
         try:
             password = body["password"]
         except KeyError:
-            raise falcon.HTTPBadRequest("Invalid parameter", "Must provide a password")
+            raise falcon.HTTPBadRequest("Missing required parameter", "Must provide a password")
         try:
             email = body["email"]
         except KeyError:
-            raise falcon.HTTPBadRequest("Invalid parameter", "Must provide an email")
+            raise falcon.HTTPBadRequest("Missing required parameter", "Must provide an email")
 
         hashed = passwords.hash(password, 12)
 
