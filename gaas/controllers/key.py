@@ -1,7 +1,7 @@
 import arrow
 import bloop
 import uuid
-from typing import Union, Sequence
+from typing import Union, Sequence, Optional
 
 from .common import persist_unique, NotFound, NotSaved
 from .validation import validate
@@ -43,11 +43,12 @@ class KeyManager:
             .key(Key.user_id == user_id)\
             .all(prefetch=0)
 
-    def revoke(self, key: Key) -> Key:
-        # Atomic because it's possible someone refreshed the key just after a load, and this revoke
-        # shouldn't apply. Only revoke keys that meet whatever criteria tried to clean them up initially.
+    def revoke(self, key: Key, force: Optional[bool]=False) -> Key:
+        # By default revokes are atomic, so that we don't accidentally blow away a key
+        # just after someone uses it.
+        # However, there are cases where we need to unconditionally delete a key.
         try:
-            self.engine.delete(key, atomic=True)
+            self.engine.delete(key, atomic=not force)
         except bloop.ConstraintViolation:
             raise NotSaved(key)
         return key

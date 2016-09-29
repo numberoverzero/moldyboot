@@ -131,7 +131,7 @@ def _delete_user(username: str):
     #    Ignore errors and delete as many as we can.
     for key in keys.list_keys(user.user_id):
         try:
-            keys.revoke(key)
+            keys.revoke(key, force=True)
         except NotSaved:
             # TODO log failure
             continue
