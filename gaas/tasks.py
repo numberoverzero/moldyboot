@@ -77,13 +77,15 @@ def _send_verification(username: str):
     try:
         username = ctx.user_manager.get_username(username)
         user = ctx.user_manager.get_user(username.user_id)
-    except (InvalidParameter, NotFound):
+    except InvalidParameter as e:
+        return Result.failed(e)
+    except NotFound:
         # TODO log failure
         # If it's InvalidParameter there's no sense raising, since retries will always fail.
         # If it's NotFound, either the username is unknown or the user id is unknown.
         #   Either way, the next call, at best, will find a user that is NOT the user we had in mind when calling
         #   this function.  Don't retry this exception, either.
-        return Result.failed()
+        return Result.failed(RuntimeError("Unknown username {!r}".format(username)))
 
     # User is already verified, no need to send another email
     if getattr(user, "verification_code", None) is None:
@@ -128,35 +130,33 @@ def _delete_user(username: str):
     users = ctx.user_manager
     keys = ctx.key_manager
 
-    # 0) Tombstone the UserName, disabling account login
+    # 0) username -> UserName -> user id
     try:
-        users.delete_username(username)
+        user_id = users.get_username(username).user_id
     except InvalidParameter as e:
         return Result.failed(e)
     except NotSaved:
         # TODO log failure
-        # Not worth retrying, since the user doesn't exist or username is malformed
+        # Not worth retrying, since the user doesn't exist
         return Result.failed(RuntimeError("Unknown username {!r}".format(username)))
-    # 0.5) The call above doesn't populate user_id, so we need to do a full load
-    username = users.get_username(username)
 
     # 1) Tombstone the User, preventing system-side actions
     try:
-        user = users.delete_user(username.user_id)
+        users.delete_user(user_id)
     except InvalidParameter as e:
         return Result.failed(e)
     except NotSaved:
         # TODO log failure
         # Don't keep going, something's wrong.
-        return Result.failed(RuntimeError("Unknown user id {!r}".format(id)))
+        return Result.failed(RuntimeError("Unknown user id {!r}".format(user_id)))
 
     # 2) Revoke all user Keys, preventing api access.
     #    Ignore errors and delete as many as we can.
-    for key in keys.list_keys(user.user_id):
+    for key in keys.list_keys(user_id):
         try:
             keys.revoke(key, force=True)
         except NotSaved:
             # TODO log failure
             continue
 
-    return Result.of({"username": username.username, "user_id": user.user_id})
+    return Result.of({"username": username, "user_id": user_id})
