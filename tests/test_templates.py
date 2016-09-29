@@ -1,24 +1,18 @@
 import pytest
 import textwrap
-import uuid
 
-from gaas.templates import load, render
-
-
-def test_load_unknown():
-    with pytest.raises(ValueError):
-        load(str(uuid.uuid4()))
+from gaas import templates
 
 
 @pytest.mark.parametrize("template_name", ["verify-email.html", "verify-email.txt"])
 def test_load_verify_email(template_name):
-    template = load(template_name)
+    template = templates._load(template_name)
     assert "{username}" in template
     assert "{verification_url}" in template
 
 
 def test_render_verify_text():
-    output = render("verify-email.txt", username="test-name", verification_url="test-url")
+    output = templates.verify_email_txt.format(username="test-name", verification_url="test-url")
     expected = textwrap.dedent("""
     Hello test-name,
 

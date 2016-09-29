@@ -104,16 +104,14 @@ def _send_verification(username: str):
             "Subject": {"Data": "Please verify your email", "Charset": "UTF-8"},
             "Body": {
                 "Text": {
-                    "Data": templates.render(
-                        "verify-email.txt",
+                    "Data": templates.verify_email_txt.format(
                         username=username.username,
                         verification_url=verification_url
                     ),
                     "Charset": "UTF-8"
                 },
                 "Html": {
-                    "Data": templates.render(
-                        "verify-email.html",
+                    "Data": templates.verify_email_html.format(
                         username=username.username,
                         verification_url=verification_url
                     ),
