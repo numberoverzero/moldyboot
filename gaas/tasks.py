@@ -8,6 +8,27 @@ from . import templates
 __all__ = ["AsyncTasks"]
 
 
+class Result:
+    def __init__(self, *, value, error):
+        self._value = value
+        self._error = error
+
+    @property
+    def value(self):
+        if self._error:
+            raise self._error
+        return self._value
+
+    @classmethod
+    def of(cls, value):
+        return cls(value=value, error=False)
+
+    @classmethod
+    def failed(cls, error_cls: Exception=RuntimeError):
+        return cls(value=None, error=error_cls)
+Result.empty = Result.of(None)
+
+
 class AsyncTasks:
     def __init__(self, queue: rq.Queue):
         self.queue = queue
@@ -62,11 +83,11 @@ def _send_verification(username: str):
         # If it's NotFound, either the username is unknown or the user id is unknown.
         #   Either way, the next call, at best, will find a user that is NOT the user we had in mind when calling
         #   this function.  Don't retry this exception, either.
-        return
+        return Result.failed()
 
     # User is already verified, no need to send another email
     if getattr(user, "verification_code", None) is None:
-        return
+        return Result.empty
 
     # TODO use config
     support = "gaas-support@moldyboot.com"
@@ -99,6 +120,7 @@ def _send_verification(username: str):
         ReplyToAddresses=[support],
         ReturnPath=support_bounce
     )
+    return Result.empty
 
 
 def _delete_user(username: str):
@@ -108,19 +130,25 @@ def _delete_user(username: str):
 
     # 0) Tombstone the UserName, disabling account login
     try:
-        username = users.delete_username(username)
-    except (InvalidParameter, NotFound):
+        users.delete_username(username)
+    except InvalidParameter as e:
+        return Result.failed(e)
+    except NotSaved:
         # TODO log failure
         # Not worth retrying, since the user doesn't exist or username is malformed
-        return
+        return Result.failed(RuntimeError("Unknown username {!r}".format(username)))
+    # 0.5) The call above doesn't populate user_id, so we need to do a full load
+    username = users.get_username(username)
 
     # 1) Tombstone the User, preventing system-side actions
     try:
         user = users.delete_user(username.user_id)
-    except (InvalidParameter, NotSaved):
+    except InvalidParameter as e:
+        return Result.failed(e)
+    except NotSaved:
         # TODO log failure
         # Don't keep going, something's wrong.
-        return
+        return Result.failed(RuntimeError("Unknown user id {!r}".format(id)))
 
     # 2) Revoke all user Keys, preventing api access.
     #    Ignore errors and delete as many as we can.
@@ -131,4 +159,4 @@ def _delete_user(username: str):
             # TODO log failure
             continue
 
-    return {"username": username.username, "user_id": user.user_id}
+    return Result.of({"username": username.username, "user_id": user.user_id})
