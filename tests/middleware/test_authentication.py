@@ -5,6 +5,8 @@ import falcon.testing
 import pytest
 import uuid
 
+from gaas.models import UserName
+
 from ..helpers import request, response, signed_request
 
 from cryptography.hazmat.backends import default_backend
@@ -66,7 +68,7 @@ def test_authenticate_signature_no_auth_header(valid_request, mock_key_manager):
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Must provide 'authorization' header" == excinfo.value.description
-    mock_key_manager.assert_not_called()
+    mock_key_manager.get_key.assert_not_called()
 
 
 def test_authenticate_signature_invalid_auth_header(valid_request, mock_key_manager):
@@ -75,7 +77,7 @@ def test_authenticate_signature_invalid_auth_header(valid_request, mock_key_mana
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert SIGNATURE_MISMATCH_MESSAGE == excinfo.value.description
-    mock_key_manager.assert_not_called()
+    mock_key_manager.get_key.assert_not_called()
 
 
 def test_authenticate_signature_invalid_id_format(rsa_priv, mock_key_manager):
@@ -100,7 +102,7 @@ def test_authenticate_signature_invalid_id_format(rsa_priv, mock_key_manager):
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert SIGNATURE_MISMATCH_MESSAGE == excinfo.value.description
-    mock_key_manager.assert_not_called()
+    mock_key_manager.get_key.assert_not_called()
 
 
 def test_authenticate_signature_invalid_param(rsa_priv, mock_key_manager):
@@ -122,23 +124,23 @@ def test_authenticate_signature_invalid_param(rsa_priv, mock_key_manager):
         private_key=rsa_priv,
         id=key_id
     )
-    mock_key_manager.load.side_effect = InvalidParameter("user_id", "bad-format", "test message")
+    mock_key_manager.get_key.side_effect = InvalidParameter("user_id", "bad-format", "test message")
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "user_id must be a uuid but was 'bad-format'" == excinfo.value.description
-    mock_key_manager.load.assert_called_once_with("bad-format", str(key_uuid))
+    mock_key_manager.get_key.assert_called_once_with("bad-format", str(key_uuid))
 
 
 def test_authenticate_signature_key_missing_or_expired(valid_request, mock_key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
-    mock_key_manager.load.side_effect = NotFound
+    mock_key_manager.get_key.side_effect = NotFound
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Unknown USER, KEYID ({}, {})".format(user_id, key_id) == excinfo.value.description
-    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
+    mock_key_manager.get_key.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authenticate_signature_invalid_signature(generate_key, valid_request, mock_key_manager):
@@ -146,72 +148,95 @@ def test_authenticate_signature_invalid_signature(generate_key, valid_request, m
 
     wrong_public = generate_key().public_key()
 
-    mock_key_manager.load.return_value = Key(user_id=user_id, key_id=key_id, public=wrong_public)
+    mock_key_manager.get_key.return_value = Key(user_id=user_id, key_id=key_id, public=wrong_public)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert "Signature validation failed:" in excinfo.value.description
-    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
+    mock_key_manager.get_key.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authenticate_signature_success(rsa_pub, valid_request, mock_key_manager):
     method, path, body, headers, user_id, key_id = valid_request
 
     key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
-    mock_key_manager.load.return_value = key
+    mock_key_manager.get_key.return_value = key
 
     actual_key = authenticate_signature(method, path, headers, body, [], mock_key_manager)
     assert actual_key == key
-    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
+    mock_key_manager.get_key.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authenticate_password_invalid_username(mock_user_manager):
     username = "0abc"
     password = "hunter2"
-    mock_user_manager.load_by_name.side_effect = InvalidParameter("username", "0abc", "test message")
+    mock_user_manager.get_username.side_effect = InvalidParameter("username", "0abc", "test message")
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_password(username, password, mock_user_manager)
     assert "Invalid username/password" in excinfo.value.description
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_not_called()
+
+
+def test_authenticate_password_username_missing(mock_user_manager):
+    username = "abc"
+    password = "hunter2"
+
+    mock_user_manager.get_username.side_effect = NotFound
+
+    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
+        authenticate_password(username, password, mock_user_manager)
+    assert "Invalid username/password" in excinfo.value.description
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_not_called()
 
 
 def test_authenticate_password_user_missing(mock_user_manager):
     username = "abc"
+    user_id = uuid.uuid4()
     password = "hunter2"
 
-    mock_user_manager.load_by_name.side_effect = NotFound
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.side_effect = NotFound
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_password(username, password, mock_user_manager)
     assert "Invalid username/password" in excinfo.value.description
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
 
 
 def test_authenticate_password_wrong_password(mock_user_manager):
     username = "abc"
+    user_id = uuid.uuid4()
     password = "hunter2"
     wrong_hash = hash(password="*******", rounds=12)
 
-    mock_user_manager.load_by_name.return_value = User(user_id=uuid.uuid4(), password_hash=wrong_hash)
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.return_value = User(user_id=user_id, password_hash=wrong_hash)
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         authenticate_password(username, password, mock_user_manager)
     assert "Invalid username/password" in excinfo.value.description
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
 
 
 def test_authenticate_password_success(mock_user_manager):
     username = "abc"
+    user_id = uuid.uuid4()
     password = "hunter2"
     correct_hash = hash(password=password, rounds=12)
-    user = User(user_id=uuid.uuid4(), password_hash=correct_hash)
+    user = User(user_id=user_id, password_hash=correct_hash)
 
-    mock_user_manager.load_by_name.return_value = user
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.return_value = User(user_id=user_id, password_hash=correct_hash)
 
     actual_user = authenticate_password(username, password, mock_user_manager)
     assert actual_user == user
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
 
 
 # Middleware tests start here ========================================================================================
@@ -222,45 +247,70 @@ def test_authentication_middleware_bypass(mock_key_manager, mock_user_manager):
     middleware = Authentication(mock_key_manager, mock_user_manager)
 
     middleware.process_resource(req, resp, resource, {})
-    mock_key_manager.assert_not_called()
+    mock_key_manager.get_key.assert_not_called()
     mock_user_manager.assert_not_called()
 
 
 def test_authentication_middleware_basic_success(mock_key_manager, mock_user_manager):
     """Resource can use (pseudo) Basic Authentication with an explicit tag"""
-    username, password = "abcUser", "|-|unterZ"
+    username, user_id, password = "abcUser", uuid.uuid4(), "|-|unterZ"
     correct_hash = passwords.hash(password=password, rounds=12)
-    user = User(user_id=uuid.uuid4(), password_hash=correct_hash)
+    user = User(user_id=user_id, password_hash=correct_hash)
 
     req = request(body={"username": username, "password": password})
     resp, resource = response(), resource_with("authentication-basic")
     middleware = Authentication(mock_key_manager, mock_user_manager)
-    mock_user_manager.load_by_name.return_value = user
+
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.return_value = user
 
     middleware.process_resource(req, resp, resource, {})
 
     assert req.context["authentication"] == {"user": user}
-    mock_key_manager.assert_not_called()
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
 
 
 def test_authentication_middleware_unverified(mock_key_manager, mock_user_manager):
     """Users that haven't verified their email accounts fail authentication"""
-    username, password = "abcUser", "|-|unterZ"
+    username, user_id, password = "abcUser", uuid.uuid4(), "|-|unterZ"
     correct_hash = passwords.hash(password=password, rounds=12)
-    user = User(user_id=uuid.uuid4(), password_hash=correct_hash, verification_code=uuid.uuid4())
+    user = User(user_id=user_id, password_hash=correct_hash, verification_code=uuid.uuid4())
 
     req = request(body={"username": username, "password": password})
     resp, resource = response(), resource_with("authentication-basic")
     middleware = Authentication(mock_key_manager, mock_user_manager)
-    mock_user_manager.load_by_name.return_value = user
+
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.return_value = user
 
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         middleware.process_resource(req, resp, resource, {})
     assert excinfo.value.description == "Account not verified"
 
-    mock_key_manager.assert_not_called()
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
+
+
+def test_authentication_middleware_deleted(mock_key_manager, mock_user_manager):
+    """Users that are tombstoned fail authentication"""
+    username, user_id, password = "abcUser", uuid.uuid4(), "|-|unterZ"
+    correct_hash = passwords.hash(password=password, rounds=12)
+    user = User(user_id=user_id, password_hash=correct_hash, deleted=True)
+
+    req = request(body={"username": username, "password": password})
+    resp, resource = response(), resource_with("authentication-basic")
+    middleware = Authentication(mock_key_manager, mock_user_manager)
+
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.return_value = user
+
+    with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
+        middleware.process_resource(req, resp, resource, {})
+    assert excinfo.value.description == "Account was deleted"
+
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
 
 
 def test_authentication_middleware_basic_no_username(mock_key_manager, mock_user_manager):
@@ -272,8 +322,9 @@ def test_authentication_middleware_basic_no_username(mock_key_manager, mock_user
         middleware.process_resource(req, resp, resource, {})
     assert excinfo.value.description == "username is missing"
 
-    mock_key_manager.assert_not_called()
-    mock_user_manager.assert_not_called()
+    mock_user_manager.get_username.assert_not_called()
+    mock_user_manager.get_user.assert_not_called()
+    mock_key_manager.get_key.assert_not_called()
 
 
 def test_authentication_middleware_basic_no_password(mock_key_manager, mock_user_manager):
@@ -285,8 +336,9 @@ def test_authentication_middleware_basic_no_password(mock_key_manager, mock_user
         middleware.process_resource(req, resp, resource, {})
     assert excinfo.value.description == "password is missing"
 
-    mock_key_manager.assert_not_called()
-    mock_user_manager.assert_not_called()
+    mock_user_manager.get_username.assert_not_called()
+    mock_user_manager.get_user.assert_not_called()
+    mock_key_manager.get_key.assert_not_called()
 
 
 def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, mock_key_manager, mock_user_manager):
@@ -299,15 +351,15 @@ def test_authentication_middleware_signature_success(rsa_priv, rsa_pub, mock_key
     resp, resource = response(), resource_with()
 
     key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
-    mock_key_manager.load.return_value = key
+    mock_key_manager.get_key.return_value = key
     user = User(user_id=user_id)
-    mock_user_manager.load_by_id.return_value = user
+    mock_user_manager.get_user.return_value = user
 
     middleware = Authentication(mock_key_manager, mock_user_manager)
     middleware.process_resource(req, resp, resource, {})
 
-    mock_user_manager.load_by_id.assert_called_once_with(user_id)
-    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
+    mock_user_manager.get_user.assert_called_once_with(user_id)
+    mock_key_manager.get_key.assert_called_once_with(str(user_id), str(key_id))
     assert req.context["authentication"] == {"key": key, "user": user}
 
 
@@ -321,16 +373,16 @@ def test_authentication_middleware_signature_unknown_user(rsa_priv, rsa_pub, moc
     resp, resource = response(), resource_with()
 
     key = Key(user_id=user_id, key_id=key_id, public=rsa_pub)
-    mock_key_manager.load.return_value = key
+    mock_key_manager.get_key.return_value = key
     # signature matches but user_id is unknown
-    mock_user_manager.load_by_id.side_effect = NotFound
+    mock_user_manager.get_user.side_effect = NotFound
 
     middleware = Authentication(mock_key_manager, mock_user_manager)
     with pytest.raises(falcon.HTTPUnauthorized) as excinfo:
         middleware.process_resource(req, resp, resource, {})
     assert excinfo.value.description == "Unknown user"
-    mock_user_manager.load_by_id.assert_called_once_with(user_id)
-    mock_key_manager.load.assert_called_once_with(str(user_id), str(key_id))
+    mock_user_manager.get_user.assert_called_once_with(user_id)
+    mock_key_manager.get_key.assert_called_once_with(str(user_id), str(key_id))
 
 
 def test_authentication_middleware_signature_failure(mock_key_manager, mock_user_manager):
@@ -348,5 +400,5 @@ def test_authentication_middleware_signature_failure(mock_key_manager, mock_user
         middleware.process_resource(req, resp, resource, {})
     assert excinfo.value.description == "Must provide 'authorization' header"
 
-    mock_user_manager.assert_not_called()
-    mock_key_manager.assert_not_called()
+    mock_user_manager.get_user.assert_not_called()
+    mock_key_manager.get_key.assert_not_called()

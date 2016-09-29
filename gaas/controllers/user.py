@@ -5,7 +5,7 @@ import bloop
 import uuid
 
 
-from .common import AlreadyExists, persist_unique, NotSaved, NotFound
+from .common import AlreadyExists, NotFound, NotSaved, persist_unique
 from .validation import validate
 from ..models import User, UserName
 
@@ -39,7 +39,7 @@ class UserManager:
             raise NotSaved(user)
         return user
 
-    def load_by_id(self, user_id: Union[str, uuid.UUID]) -> User:
+    def get_user(self, user_id: Union[str, uuid.UUID]) -> User:
         user_id = validate("user_id", user_id)
         user = User(user_id=user_id)
         try:
@@ -48,16 +48,34 @@ class UserManager:
             raise NotFound
         return user
 
-    def load_by_name(self, username: str) -> User:
+    def get_username(self, username: str) -> UserName:
         username = validate("username", username)
         username = UserName(username=username)
         try:
             self.engine.load(username)
         except bloop.NotModified:
             raise NotFound
-        return self.load_by_id(username.user_id)
+        return username
 
-    def verify(self, user: User, verification_code: str) -> None:
+    def delete_user(self, user_id: Union[str, uuid.UUID]) -> User:
+        user_id = validate("user_id", user_id)
+        user = User(user_id=user_id, deleted=True)
+        try:
+            self.engine.save(user, condition=User.user_id.is_not(None))
+        except bloop.ConstraintViolation:
+            raise NotSaved(user)
+        return user
+
+    def delete_username(self, username: str) -> UserName:
+        username = validate("username", username)
+        username = UserName(username=username, deleted=True)
+        try:
+            self.engine.save(username, condition=UserName.username.is_not(None))
+        except bloop.ConstraintViolation:
+            raise NotSaved(username)
+        return username
+
+    def verify(self, user: User, verification_code: str):
         code = validate("verification_code", verification_code)
         current_code = getattr(user, "verification_code", None)
         # User already verified, nothing to do

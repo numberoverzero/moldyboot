@@ -4,7 +4,7 @@ import uuid
 
 from gaas.config import api_endpoint
 from gaas.controllers import InvalidParameter, NotFound
-from gaas.models import User
+from gaas.models import User, UserName
 from gaas.tasks import AsyncTasks, RedisContext, _send_verification
 from gaas.templates import render
 
@@ -26,9 +26,14 @@ def async_tasks(queue):
     return AsyncTasks(queue)
 
 
-@pytest.yield_fixture
-def redis_context(mock_user_manager, boto3_session):
-    RedisContext.initialize(mock_user_manager, boto3_session, api_endpoint)
+@pytest.fixture
+def redis_context(mock_user_manager, mock_key_manager, boto3_session):
+    RedisContext.initialize(
+        user_manager=mock_user_manager,
+        key_manager=mock_key_manager,
+        session=boto3_session,
+        endpoint=api_endpoint
+    )
 
 
 @pytest.yield_fixture(autouse=True)
@@ -37,10 +42,10 @@ def clear_redis_context():
     RedisContext.singleton = None
 
 
-def test_double_context_initialize(mock_user_manager, boto3_session):
-    RedisContext.initialize(mock_user_manager, boto3_session, api_endpoint)
+def test_double_context_initialize(mock_user_manager, mock_key_manager, boto3_session):
+    RedisContext.initialize(mock_user_manager, mock_key_manager, boto3_session, api_endpoint)
     with pytest.raises(RuntimeError):
-        RedisContext.initialize(mock_user_manager, boto3_session, api_endpoint)
+        RedisContext.initialize(mock_user_manager, mock_key_manager, boto3_session, api_endpoint)
 
 
 def test_not_initialized():
@@ -57,32 +62,35 @@ def test_scheduler_send_email(async_tasks, queue):
 
 def test_username_invalid(ses, mock_user_manager, redis_context):
     username = "-unknown+user"
-    mock_user_manager.load_by_name.side_effect = InvalidParameter("username", username, "test message")
+    mock_user_manager.get_username.side_effect = InvalidParameter("username", username, "test message")
 
     _send_verification(username)
 
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
     ses.send_email.assert_not_called()
 
 
 def test_username_not_found(ses, mock_user_manager, redis_context):
     username = "user"
-    mock_user_manager.load_by_name.side_effect = NotFound
+    mock_user_manager.get_username.side_effect = NotFound
 
     _send_verification(username)
 
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
     ses.send_email.assert_not_called()
 
 
 def test_already_verified(ses, mock_user_manager, redis_context):
     username = "user"
+    user_id = uuid.uuid4()
     # No verification_code
-    mock_user_manager.load_by_name.return_value = User(user_id=uuid.uuid4(), email="user@domain.com")
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.return_value = User(user_id=user_id, email="user@domain.com")
 
     _send_verification(username)
 
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
     ses.send_email.assert_not_called()
 
 
@@ -92,12 +100,15 @@ def test_email_success(ses, mock_user_manager, redis_context):
     email = "user@domain.com"
     verification_code = uuid.uuid4()
     verification_url = "{}/verify/{}/{}".format(api_endpoint.geturl(), user_id, verification_code)
-    user = User(user_id=user_id, verification_code=verification_code, email=email)
-    mock_user_manager.load_by_name.return_value = user
+    mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
+    mock_user_manager.get_user.return_value = User(user_id=user_id,
+                                                   verification_code=verification_code,
+                                                   email=email)
 
     _send_verification(username)
 
-    mock_user_manager.load_by_name.assert_called_once_with(username)
+    mock_user_manager.get_username.assert_called_once_with(username)
+    mock_user_manager.get_user.assert_called_once_with(user_id)
     expected_txt = render("verify-email.txt", username=username, verification_url=verification_url)
     expected_html = render("verify-email.html", username=username, verification_url=verification_url)
     ses.send_email.assert_called_once_with(**{

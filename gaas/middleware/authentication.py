@@ -1,36 +1,35 @@
 import falcon
+import functools
 
 from ..controllers import InvalidParameter, KeyManager, NotFound, UserManager, validate
 from ..resources import get_metadata, has_tag
 from ..security import passwords, signatures
+
+failure = functools.partial(falcon.HTTPUnauthorized, title="Authentication failed", challenges=None)
 
 
 def lowercase_headers(headers):
     return {key.lower(): value for key, value in headers.items()}
 
 
-def fail(message):
-    raise falcon.HTTPUnauthorized("Authentication failed", message, None)
-
-
 def authenticate_signature(method, path, headers, body, headers_to_sign, key_manager: KeyManager):
 
     # 1) Check authorization header format
     if "authorization" not in headers:
-        fail("Must provide 'authorization' header")
+        raise failure(description="Must provide 'authorization' header")
     try:
         authentication = validate("authorization_header", headers["authorization"])
     except InvalidParameter as exception:
-        fail("Authorization header did not match required pattern {}".format(exception.message))
+        raise failure(description="Authorization header did not match required pattern {}".format(exception.message))
 
-    # 2) Try to load public key
+    # 2) Try to get public key
     user_id, key_id = authentication["user_id"], authentication["key_id"]
     try:
-        key = key_manager.load(user_id, key_id)
+        key = key_manager.get_key(user_id, key_id)
     except InvalidParameter as exception:
-        fail("{} must be a uuid but was '{}'".format(exception.parameter_name, exception.value))
+        raise failure(description="{} must be a uuid but was '{}'".format(exception.parameter_name, exception.value))
     except NotFound:
-        fail("Unknown USER, KEYID ({}, {})".format(user_id, key_id))
+        raise failure(description="Unknown USER, KEYID ({}, {})".format(user_id, key_id))
 
     # 3) Check signature
     try:
@@ -44,23 +43,30 @@ def authenticate_signature(method, path, headers, body, headers_to_sign, key_man
             signed_headers=authentication["headers"].split(" "),
             headers_to_sign=headers_to_sign)
     except signatures.BadSignature as exception:
-        fail("Signature validation failed: {}".format(exception.args[0]))
+        raise failure(description="Signature validation failed: {}".format(exception.args[0]))
 
     # Success!  Let callers know who was just authenticated
     return key
 
 
 def authenticate_password(username, password, user_manager: UserManager):
-    # 1) Check that user exists
+    # 0) username -> UserName
     try:
-        user = user_manager.load_by_name(username)
+        username = user_manager.get_username(username)
     except (InvalidParameter, NotFound):
-        fail("Invalid username/password")
+        raise failure(description="Invalid username/password")
+    # 1) UserName -> User
+    try:
+        user = user_manager.get_user(username.user_id)
+    except (InvalidParameter, NotFound):
+        raise failure(description="Invalid username/password")
+
     # 2) Compare passwords
     try:
         passwords.check(password=password, expected_hash=user.password_hash)
     except passwords.BadPassword:
-        fail("Invalid username/password")
+        raise failure(description="Invalid username/password")
+
     # Success! Return user_id of the user that just authenticated
     return user
 
@@ -83,21 +89,26 @@ class Authentication:
             self._signature_auth(req, resource)
 
         # Both basic auth and signature auth populate the auth context with a user.
-        # Verifying the account's email is a required part of authentication
         user = req.context["authentication"]["user"]
+
+        # Unverified users always fail authentication
         if not user.is_verified:
-            fail("Account not verified")
+            raise failure(description="Account not verified")
+
+        # Tombstoned users always fail authentication
+        if user.is_deleted:
+            raise failure(description="Account was deleted")
 
     def _basic_auth(self, req: falcon.Request):
         body = req.context["body"].json
         try:
             username = body["username"]
         except KeyError:
-            fail("username is missing")
+            raise failure(description="username is missing")
         try:
             password = body["password"]
         except KeyError:
-            fail("password is missing")
+            raise failure(description="password is missing")
         user = authenticate_password(username, password, self.user_manager)
         req.context["authentication"] = {"user": user}
 
@@ -118,7 +129,7 @@ class Authentication:
             additional_headers_to_sign = []
         key = authenticate_signature(method, path, headers, body, additional_headers_to_sign, self.key_manager)
         try:
-            user = self.user_manager.load_by_id(key.user_id)
+            user = self.user_manager.get_user(key.user_id)
         except NotFound:
-            fail("Unknown user")
+            raise failure(description="Unknown user")
         req.context["authentication"] = {"key": key, "user": user}

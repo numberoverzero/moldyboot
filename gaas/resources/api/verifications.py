@@ -21,7 +21,7 @@ class Verifications:
         400 if the user_id or verification_code is malformed, doesn't match, or user doesn't exist"""
 
         try:
-            user = self.user_manager.load_by_id(user_id)
+            user = self.user_manager.get_user(user_id)
         except InvalidParameter as exception:
             fail("user_id must be a uuid but was '{}'".format(exception.value))
         except NotFound:

@@ -88,7 +88,7 @@ def test_on_post_malformed_public_key(mock_key_manager):
 
 
 def test_on_post_fail_to_save(mock_key_manager):
-    """Upload a new key but fail to persist"""
+    """Upload a new key but failure to persist"""
     user = User(user_id=uuid.uuid4())
     public_key = "not in pem format"
     req, resp = basic_auth_request(user, body={"public_key": public_key}), response()

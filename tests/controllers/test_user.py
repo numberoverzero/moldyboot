@@ -87,51 +87,51 @@ def test_new_user_success(user_manager):
     assert returned_user == expected_user
 
 
-def test_load_by_invalid_user_id(user_manager):
+def test_get_invalid_user(user_manager):
     invalid_user_id = "not a uuid"
 
     with pytest.raises(InvalidParameter) as excinfo:
-        user_manager.load_by_id(invalid_user_id)
+        user_manager.get_user(invalid_user_id)
     assert excinfo.value.parameter_name == "user_id"
     user_manager.engine.save.assert_not_called()
 
 
-def test_load_by_unknown_user_id(user_manager):
+def test_get_unknown_user(user_manager):
     user_id = uuid.uuid4()
     expected_user = User(user_id=user_id)
     user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_user])
 
     with pytest.raises(NotFound):
-        user_manager.load_by_id(user_id)
+        user_manager.get_user(user_id)
     user_manager.engine.load.assert_called_once_with(expected_user)
 
 
-def test_load_by_user_id_success(user_manager):
+def test_get_user_success(user_manager):
     user_id = uuid.uuid4()
-    user = user_manager.load_by_id(user_id)
+    user = user_manager.get_user(user_id)
     assert user.user_id == user_id
 
 
-def test_load_by_invalid_username(user_manager):
+def test_get_invalid_username(user_manager):
     invalid_username = "0af"
 
     with pytest.raises(InvalidParameter) as excinfo:
-        user_manager.load_by_name(invalid_username)
+        user_manager.get_username(invalid_username)
     assert excinfo.value.parameter_name == "username"
     user_manager.engine.load.assert_not_called()
 
 
-def test_load_by_unknown_username(user_manager):
+def test_get_unknown_username(user_manager):
     username = "fooBar00"
     expected_username = UserName(username=username)
     user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_username])
 
     with pytest.raises(NotFound):
-        user_manager.load_by_name(username)
+        user_manager.get_username(username)
     user_manager.engine.load.assert_called_once_with(expected_username)
 
 
-def test_load_by_username_success(user_manager):
+def test_get_username_success(user_manager):
     username = "fooBar00"
     user_id = uuid.uuid4()
 
@@ -140,10 +140,9 @@ def test_load_by_username_success(user_manager):
             obj.user_id = user_id
     user_manager.engine.load.side_effect = load
 
-    user = user_manager.load_by_name(username)
-    assert user.user_id == user_id
+    username_obj = user_manager.get_username(username)
+    assert username_obj.user_id == user_id
     user_manager.engine.load.assert_any_call(UserName(username=username, user_id=user_id))
-    user_manager.engine.load.assert_any_call(User(user_id=user_id))
 
 
 def test_verify_invalid_code(user_manager):

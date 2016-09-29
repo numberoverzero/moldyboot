@@ -1,4 +1,4 @@
-from bloop import Binary, Column, DateTime, GlobalSecondaryIndex, String, UUID
+from bloop import Binary, Boolean, Column, DateTime, GlobalSecondaryIndex, String, UUID
 
 from .common import BaseModel
 
@@ -12,6 +12,10 @@ class UserName(BaseModel):
     username = Column(String, hash_key=True, name="n")
     user_id = Column(UUID, name="u")
     created = Column(DateTime, name="c")
+    deleted = Column(Boolean, name="d")
+
+    by_user_id = GlobalSecondaryIndex(
+        projection="keys_only", hash_key="user_id", name="by_u")
 
 
 class User(BaseModel):
@@ -24,11 +28,14 @@ class User(BaseModel):
     password_hash = Column(Binary, name="p")
     email = Column(String, name="e")
     verification_code = Column(UUID, name="v")
-
-    by_user_id = GlobalSecondaryIndex(
-        projection="keys_only", hash_key="user_id", name="by_u")
+    deleted = Column(Boolean, name="d")
 
     @property
     def is_verified(self):
         # bloop doesn't set attrs when values are missing
         return getattr(self, "verification_code", None) is None
+
+    @property
+    def is_deleted(self):
+        # bloop doesn't set attrs when values are missing
+        return getattr(self, "deleted", False) is True
