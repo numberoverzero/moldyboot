@@ -1,3 +1,5 @@
+from typing import Union
+
 import arrow
 import bloop
 import uuid
@@ -37,7 +39,7 @@ class UserManager:
             raise NotSaved(user)
         return user
 
-    def load_by_id(self, user_id) -> User:
+    def load_by_id(self, user_id: Union[str, uuid.UUID]) -> User:
         user_id = validate("user_id", user_id)
         user = User(user_id=user_id)
         try:
@@ -46,7 +48,7 @@ class UserManager:
             raise NotFound
         return user
 
-    def load_by_name(self, username) -> User:
+    def load_by_name(self, username: str) -> User:
         username = validate("username", username)
         username = UserName(username=username)
         try:

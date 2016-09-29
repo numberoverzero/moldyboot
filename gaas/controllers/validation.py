@@ -87,8 +87,7 @@ validators["email"] = _validate_email
 
 
 def _validate_username(username):
-    match = USERNAME_PATTERN.match(username)
-    if not match:
+    if not USERNAME_PATTERN.match(username):
         return Result.error("must start with a letter; only letters and digits; between 3 and 16 characters long")
     return Result.of(username)
 validators["username"] = _validate_username
@@ -119,8 +118,7 @@ validators["public_key"] = _validate_public_key
 def _validate_password_hash(password_hash):
     if isinstance(password_hash, str):
         password_hash = password_hash.encode("utf-8")
-    match = BCRYPT_HASH_PATTERN.match(password_hash)
-    if not match:
+    if not BCRYPT_HASH_PATTERN.match(password_hash):
         return Result.error("Must be a password hash (did you forget to bcrypt?)")
     return Result.of(password_hash)
 validators["password_hash"] = _validate_password_hash

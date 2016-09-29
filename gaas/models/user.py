@@ -1,4 +1,4 @@
-from bloop import Binary, Column, DateTime, String, UUID
+from bloop import Binary, Column, DateTime, GlobalSecondaryIndex, String, UUID
 
 from .common import BaseModel
 
@@ -24,6 +24,9 @@ class User(BaseModel):
     password_hash = Column(Binary, name="p")
     email = Column(String, name="e")
     verification_code = Column(UUID, name="v")
+
+    by_user_id = GlobalSecondaryIndex(
+        projection="keys_only", hash_key="user_id", name="by_u")
 
     @property
     def is_verified(self):
