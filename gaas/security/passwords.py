@@ -2,6 +2,9 @@ import bcrypt
 from typing import Union
 
 
+DEFAULT_SALT_LENGTH = 12
+
+
 class BadPassword(Exception):
     pass
 
