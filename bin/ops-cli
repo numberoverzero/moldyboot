@@ -7,6 +7,8 @@ from gaas.config import api_endpoint, async_tasks, user_manager
 from gaas.controllers import AlreadyExists, NotFound, NotSaved
 from gaas.security import passwords
 
+TIMED_OUT = object()
+
 
 def url_for(resource: str) -> str:
     assert resource.startswith("/")
@@ -18,12 +20,15 @@ def abort_if_false(ctx, param, value):
         ctx.abort()
 
 
-def busy_poll(job, timeout=10):
+def busy_poll(job, timeout=5):
+    interval = timeout / 20
     while timeout > 0:
         if job.result is not None:
-            return job.result
-        time.sleep(0.2)
-    return None
+            # Result.value raises if the operation failed
+            return job.result.value
+        time.sleep(interval)
+        timeout -= interval
+    return TIMED_OUT
 
 
 @click.group()
@@ -36,8 +41,9 @@ def cli():
 @click.option("--username", "-u", "-n", default=None, type=str, help="New username.")
 @click.option("--email", "-e", default=None, type=str, help="New user's email.")
 @click.option("--password", "-p", default=None, type=str, help="New user's password.")
+@click.option("--no-verify", "-n", default=False, type=bool, help="Don't send a verification email", is_flag=True)
 @click.pass_context
-def create_user(ctx: click.Context, file, username, email, password):
+def create_user(ctx: click.Context, file, username, email, password, no_verify):
     if not file and not (username and email and password):
         raise click.BadParameter("must provide either file or name, email, and password.")
     if file:
@@ -63,6 +69,10 @@ def create_user(ctx: click.Context, file, username, email, password):
             username, getattr(user, "user_id", "<UNKNOWN>")
         ))
     else:
+        if not no_verify:
+            job = async_tasks.send_verification(username)
+            if busy_poll(job) is TIMED_OUT:
+                ctx.fail("timed out sending verification email to username {!r}".format(username))
         click.echo(str(user.user_id))
 cli.add_command(create_user)
 
@@ -70,8 +80,7 @@ cli.add_command(create_user)
 @click.command("du")
 @click.option("--username", "-u", default=None, type=str, help="Username to delete.")
 @click.option("--user-id", "-id", default=None, type=str, help="User id to delete.")
-@click.option("--yes", "-y", is_flag=True, callback=abort_if_false, expose_value=False,
-              prompt="Are you sure you want to delete the user?")
+@click.confirmation_option("--yes", "-y", prompt="Are you sure you want to delete the user?")
 @click.pass_context
 def delete_user(ctx, username, user_id):
     if not username and not user_id:
@@ -85,8 +94,8 @@ def delete_user(ctx, username, user_id):
             ctx.fail("couldn't find the username for user id {!r}".format(user_id))
     job = async_tasks.delete_user(username)
     deleted = busy_poll(job)
-    if deleted is None:
-        ctx.fail("failed to delete user with username {!r}".format(username))
+    if deleted is TIMED_OUT:
+        ctx.fail("timed out waiting to delete username {!r}".format(username))
     click.echo("deleted username {!r} user_id {!r}".format(deleted["username"], deleted["user_id"]))
 
 cli.add_command(delete_user)
