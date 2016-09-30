@@ -2,13 +2,23 @@
 import falcon
 
 from wsgiref import simple_server
-from gaas.resources.console import Login
+from gaas.config import api_endpoint, console_endpoint
+from gaas.resources.console import FileRenderer
 
-PORT = 8020
+context = {
+    "endpoints": {
+        "api": api_endpoint.geturl(),
+        "console": console_endpoint.geturl()
+    }
+}
+renderer = FileRenderer(context)
 
 api = application = falcon.API()
-api.add_route("/login", Login())
+api.add_route("/login", renderer.static("login.html"))
+api.add_route("/console", renderer.static("console.html"))
+api.add_route("/scripts/{filename}", renderer.dynamic("^.+\.js$"))
+api.add_route("/css/{filename}", renderer.dynamic("^.+\.css$"))
 
-httpd = simple_server.make_server("127.0.0.1", PORT, api)
-print("Serving CONSOLE on {}".format(PORT))
+httpd = simple_server.make_server(console_endpoint.hostname, console_endpoint.port, api)
+print("Serving CONSOLE on {}".format(console_endpoint.port))
 httpd.serve_forever()
