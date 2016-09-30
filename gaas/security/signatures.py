@@ -71,6 +71,11 @@ def verify(*,
     now = arrow.now()
     method = method.lower()
     headers_to_sign = (headers_to_sign or [])[:]
+
+    # 0) Fix content-length header, since clients and http servers do weird things to it.
+    #    Most of them omit this header when 0 or on gets, but it MUST be present for signing.
+    headers["content-length"] = headers.get("content-length", "") or "0"
+
     # 1) The list of headers to sign must include the minimum signing headers
     _ensure_minimum_headers(headers_to_sign)
     # 2) Raise if any additional headers to sign are missing, or the signed headers don't include the headers to sign
@@ -78,6 +83,7 @@ def verify(*,
     # 3) Raise if the x-date header is out of bounds, or the body hash is wrong
     _verify_date(headers, now)
     _verify_body(headers, body)
+
     # 4) Build the expected signature from the available headers
     signing_string = _build_signing_string(method, path, headers, headers_to_sign, signed_headers=signed_headers)
     # 5) Verify the expected signature against the provided signature
@@ -178,7 +184,7 @@ def _verify_date(headers: Dict[str, str], now: arrow.Arrow):
 def _verify_body(headers: Dict[str, str], body: str):
     body = body or ""
     header_x_content_sha256 = headers["x-content-sha256"]
-    header_content_length = headers["content-length"] or "0"
+    header_content_length = headers["content-length"]
     try:
         header_content_length = int(header_content_length)
     except ValueError:
