@@ -1,3 +1,3 @@
-from .login import Login
+from .files import FileRenderer
 
-__all__ = ["Login"]
+__all__ = ["FileRenderer"]
