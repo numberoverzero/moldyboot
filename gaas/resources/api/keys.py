@@ -1,9 +1,12 @@
 import falcon
 
-from cryptography.hazmat.primitives import serialization
-
+from ...models import User, Key
 from ...controllers import InvalidParameter, KeyManager, NotSaved
 from ..meta import tag
+
+
+def key_id(user: User, key: Key):
+    return "{}@{}".format(user.user_id, key.key_id)
 
 
 class Keys:
@@ -11,12 +14,15 @@ class Keys:
         self.key_manager = key_manager
 
     def on_get(self, req: falcon.Request, resp: falcon.Response):
-        """Caller passed authentication, return the public key their signature passed with"""
-        public_key = req.context["authentication"]["key"].public.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ).decode("utf-8")
-        req.context["response"] = {"public_key": public_key}
+        """Caller passed authentication, return the key_id and expiration that their signature passed with"""
+        user = req.context["authentication"]["user"]
+        key = req.context["authentication"]["key"]
+
+        req.context["response"] = {
+            "key_id": key_id(user, key),
+            "until": key.until.to("utc").isoformat(),
+            "fingerprint": key.compute_fingerprint()
+        }
         resp.status = falcon.HTTP_200
 
     def on_delete(self, req: falcon.Request, resp: falcon.Response):
@@ -43,5 +49,8 @@ class Keys:
         except NotSaved:
             raise falcon.HTTPInternalServerError("Internal Server Error", "Failed to store public key")
 
-        req.context["response"] = {"key_id": "{}@{}".format(user.user_id, key.key_id)}
+        req.context["response"] = {
+            "key_id": key_id(user, key),
+            "until": key.until.to("utc").isoformat(),
+        }
         resp.status = falcon.HTTP_200
