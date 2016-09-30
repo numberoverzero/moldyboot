@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GaaS Login</title>
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.1.0/milligram.css"
+        integrity="sha256-bqbMG65J5kcnYP6BsVMLUsIfO0NDCQIM+sGQzzJ4Qa0="
+        crossorigin="anonymous"
+        rel="stylesheet"
+    />
+</head>
+<body>
+<div class="container">
+    <h2 class="title">Login to GaaS</h2>
+    <form action="#" id="login-form">
+        <fieldset>
+            <label for="login-username">Username</label>
+            <input id="login-username" placeholder="numberoverzero" type="text">
+            <label for="login-password">Password</label>
+            <input id="login-password" type="password">
+            <input id="login-button" class="button-primary" value="send" type="submit">
+            <div id="login-error" class="container" style="display: none">Incorrect username or password.</div>
+        </fieldset>
+    </form>
+</div>
+
+<!-- jsrsasign 6.1.1, jQuery 3.1.1 -->
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/6.1.1/jsrsasign.js"
+    integrity="sha256-a6Z6XBTDHAUrZ0DlArG6H8wKf1XXuHR7qS4lu1eHCHY="
+    crossorigin="anonymous"
+    type="application/javascript"
+></script>
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.js"
+    integrity="sha256-16cdPddA6VdVInumRGo6IbivbERE8p7CQR3HzTBuELA="
+    crossorigin="anonymous"
+    type="application/javascript"
+></script>
+<script src="{{endpoints.console}}/scripts/gaas-crypto.js" type="text/javascript"></script>
+
+<script type="application/javascript">
+    "use strict";
+    var $username = $("#login-username");
+    var $password = $("#login-password");
+    var $loginButton = $("#login-button");
+    var $loginStatus = $("#login-error");
+
+    $loginButton.prop("disabled", false);
+
+    // Submit form against the API, not the console
+    $("#login-form").submit(function(event) {
+        event.preventDefault();
+        $loginButton.prop("disabled", true);
+        var username = $username.val(),
+            password = $password.val();
+
+        var key = signer.loadKey();
+        if (key === null) {
+            var generatedKey = simpleCrypto.generate();
+            key = signer.setKey({
+                privateKey: generatedKey.prvKeyObj,
+                publicKey: generatedKey.pubKeyObj
+            });
+        }
+
+        api.login(username, password, key.publicKey)
+            .done(function(response) {
+                $loginStatus.hide();
+                key.keyId = response.key_id;
+                key.until = new Date(response.until);
+                signer.setKey(key);
+                window.location.href = "{{endpoints.console}}/console";
+            })
+            .fail(function(){
+                $loginButton.prop("disabled", false);
+                $username.val("");
+                $password.val("");
+                $loginStatus.show();
+            });
+    });
+</script>
+</body>
+</html>
