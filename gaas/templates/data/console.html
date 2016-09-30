@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GaaS Console</title>
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css"
+        integrity="sha256-K3Njjl2oe0gjRteXwX01fQD5fkk9JFFBdUHy/h38ggY="
+        crossorigin="anonymous"
+        rel="stylesheet"
+    />
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.1.0/milligram.css"
+        integrity="sha256-bqbMG65J5kcnYP6BsVMLUsIfO0NDCQIM+sGQzzJ4Qa0="
+        crossorigin="anonymous"
+        rel="stylesheet"
+    />
+    <link
+        href="{{endpoints.console}}/css/main.css"
+        rel="stylesheet"
+    />
+</head>
+<body>
+<div class="container">
+    <main class="wrapper">
+        <h2 class="title">Welcome to GaaS!</h2>
+        <section id="keySection" class="container" style="display: none">
+            <p>Your key's id is:</p>
+            <pre><code id="keyId"></code></pre>
+            <p>Your key's sha256 fingerprint is:</p>
+            <pre><code id="fingerprint"></code></pre>
+        </section>
+    </main>
+</div>
+
+<!-- jsrsasign 6.1.1, jQuery 3.1.1 -->
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/6.1.1/jsrsasign.js"
+    integrity="sha256-a6Z6XBTDHAUrZ0DlArG6H8wKf1XXuHR7qS4lu1eHCHY="
+    crossorigin="anonymous"
+    type="application/javascript"
+></script>
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.js"
+    integrity="sha256-16cdPddA6VdVInumRGo6IbivbERE8p7CQR3HzTBuELA="
+    crossorigin="anonymous"
+    type="application/javascript"
+></script>
+<script src="{{endpoints.console}}/scripts/gaas-crypto.js" type="text/javascript"></script>
+<script type="application/javascript">
+    "use strict";
+    api.getKey().done(function(response){
+        $("#keyId").text(response.key_id);
+        $("#fingerprint").text(response.fingerprint);
+        $("#keySection").show();
+    });
+</script>
+</body>
+</html>
