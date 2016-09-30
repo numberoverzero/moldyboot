@@ -1,5 +1,8 @@
+import base64
+
 import arrow
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives import serialization
 from bloop import Binary, Column, DateTime, UUID
@@ -7,9 +10,9 @@ from bloop import Binary, Column, DateTime, UUID
 from .common import BaseModel
 
 
-def as_bytes(public: RSAPublicKey):
+def as_bytes(public: RSAPublicKey, encoding: serialization.Encoding):
     return public.public_bytes(
-        encoding=serialization.Encoding.DER,
+        encoding=encoding,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
@@ -26,7 +29,7 @@ class PublicKeyType(Binary):
         )
 
     def dynamo_dump(self, value: RSAPublicKey, *, context=None, **kwargs) -> str:
-        value = as_bytes(value)
+        value = as_bytes(value, serialization.Encoding.DER)
         return super().dynamo_dump(value, context=context, **kwargs)
 
 
@@ -45,6 +48,13 @@ class Key(BaseModel):
     @property
     def is_expired(self):
         return arrow.now() > self.until
+
+    def compute_fingerprint(self) -> str:
+        """Base64 of the SHA256 of public key in PEM format"""
+        public_bytes = as_bytes(self.public, serialization.Encoding.PEM)
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        digest.update(public_bytes)
+        return base64.b64encode(digest.finalize()).decode("utf-8")
 
     def __eq__(self, other):
         if not isinstance(other, Key):
@@ -65,5 +75,6 @@ class Key(BaseModel):
             # Both missing, they're equal
             return True
         # Both exist, compare byte values
-        return as_bytes(self_public) == as_bytes(other_public)
+        enc = serialization.Encoding.DER
+        return as_bytes(self_public, enc) == as_bytes(other_public, enc)
     __hash__ = BaseModel.__hash__
