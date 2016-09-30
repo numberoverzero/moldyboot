@@ -5,9 +5,11 @@ boto3
 click
 cryptography
 falcon
+falcon-cors
 hiredis
 httpie
 humanize
+pystache
 pytest
 roughly
 rq
