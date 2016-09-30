@@ -1,6 +1,6 @@
-Hello {username},
+Hello {{username}},
 
-Please visit {verification_url} to verify your email address.
+Please visit {{verification_url}} to verify your email address.
 
 Thank you,
 
