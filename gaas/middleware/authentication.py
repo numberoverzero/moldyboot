@@ -77,7 +77,8 @@ class Authentication:
         self.user_manager = user_manager
 
     def process_resource(self, req: falcon.Request, resp: falcon.Response, resource, params):
-
+        if req.method.lower() == "options":
+            return
         # Auth bypass (ie. email verification)
         if has_tag(resource, req.method, "authentication-skip"):
             return
