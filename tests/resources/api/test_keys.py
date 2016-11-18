@@ -1,3 +1,4 @@
+import arrow
 import falcon
 import pytest
 import uuid
@@ -17,26 +18,26 @@ def basic_auth_request(user, **kwargs):
     return req
 
 
-def signed_auth_request(key, **kwargs):
+def signed_auth_request(key, user, **kwargs):
     req = request(**kwargs)
-    req.context["authentication"] = {"key": key}
+    req.context["authentication"] = {"key": key, "user": user}
     return req
 
 
 def test_on_get(mock_key_manager, rsa_pub):
     """Echoes the authenticated public key back at the user"""
-    key = Key(user_id=uuid.uuid4(), public=rsa_pub)
-    req, resp = signed_auth_request(key), response()
+    expiry = arrow.now().to("utc").replace(hours=1)
+    key = Key(key_id=uuid.uuid4(), user_id=uuid.uuid4(), public=rsa_pub, until=expiry)
+    user = User(user_id=key.user_id)
+    req, resp = signed_auth_request(key, user), response()
 
     resource = Keys(mock_key_manager)
     resource.on_get(req, resp)
 
-    public_key_str = rsa_pub.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode("utf-8")
-
-    assert req.context["response"] == {"public_key": public_key_str}
+    assert req.context["response"] == {
+        "fingerprint": key.compute_fingerprint(),
+        "until": expiry.isoformat(),
+        "key_id": "{}@{}".format(user.user_id, key.key_id)}
     assert resp.status == falcon.HTTP_200
     mock_key_manager.assert_not_called()
 
@@ -44,7 +45,7 @@ def test_on_get(mock_key_manager, rsa_pub):
 def test_on_delete(mock_key_manager, rsa_pub):
     """Manually revoke a key"""
     key = Key(user_id=uuid.uuid4(), public=rsa_pub)
-    req, resp = signed_auth_request(key), response()
+    req, resp = signed_auth_request(key, None), response()
 
     resource = Keys(mock_key_manager)
     resource.on_delete(req, resp)
@@ -115,11 +116,15 @@ def test_on_post(mock_key_manager, rsa_pub):
     ).decode("utf-8")
     req, resp = basic_auth_request(user, body={"public_key": public_key}), response()
 
+    expiry = arrow.now().to("utc").replace(hours=1)
     resource = Keys(mock_key_manager)
-    mock_key_manager.new.return_value = Key(user_id=user.user_id, key_id=key_id)
+    mock_key_manager.new.return_value = Key(user_id=user.user_id, key_id=key_id, until=expiry)
 
     resource.on_post(req, resp)
 
-    assert req.context["response"] == {"key_id": "{}@{}".format(user.user_id, key_id)}
+    assert req.context["response"] == {
+        "key_id": "{}@{}".format(user.user_id, key_id),
+        "until": expiry.isoformat()
+    }
     assert resp.status == falcon.HTTP_200
     mock_key_manager.new.assert_called_once_with(user.user_id, public_key)

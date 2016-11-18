@@ -28,6 +28,8 @@ class Result:
     @classmethod
     def failed(cls, error_cls: Exception=RuntimeError):
         return cls(value=None, error=error_cls)
+
+
 Result.empty = Result.of(None)
 
 
@@ -104,17 +106,17 @@ def _send_verification(username: str):
             "Subject": {"Data": "Please verify your email", "Charset": "UTF-8"},
             "Body": {
                 "Text": {
-                    "Data": templates.verify_email_txt.format(
-                        username=username.username,
-                        verification_url=verification_url
-                    ),
+                    "Data": templates.render("verify-email.txt", {
+                        "username": username.username,
+                        "verification_url": verification_url
+                    }),
                     "Charset": "UTF-8"
                 },
                 "Html": {
-                    "Data": templates.verify_email_html.format(
-                        username=username.username,
-                        verification_url=verification_url
-                    ),
+                    "Data": templates.render("verify-email.html", {
+                        "username": username.username,
+                        "verification_url": verification_url
+                    }),
                     "Charset": "UTF-8"
                 }
             }

@@ -12,7 +12,10 @@ def test_load_verify_email(template_name):
 
 
 def test_render_verify_text():
-    output = templates.verify_email_txt.format(username="test-name", verification_url="test-url")
+    output = templates.render(
+        "verify-email.txt",
+        {"username": "test-name", "verification_url": "test-url"}
+    )
     expected = textwrap.dedent("""
     Hello test-name,
 

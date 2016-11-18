@@ -148,8 +148,12 @@ def test_email_success(ses, mock_user_manager, redis_context):
 
     mock_user_manager.get_username.assert_called_once_with(username)
     mock_user_manager.get_user.assert_called_once_with(user_id)
-    expected_txt = templates.verify_email_txt.format(username=username, verification_url=verification_url)
-    expected_html = templates.verify_email_html.format(username=username, verification_url=verification_url)
+    expected_txt = templates.render(
+        "verify-email.txt",
+        {"username": username, "verification_url": verification_url})
+    expected_html = templates.render(
+        "verify-email.html",
+        {"username": username, "verification_url": verification_url})
     ses.send_email.assert_called_once_with(**{
         "Source": "gaas-support@moldyboot.com",
         "Destination": {"ToAddresses": [email]},

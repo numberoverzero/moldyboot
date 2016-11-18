@@ -66,6 +66,8 @@ def _validate_uuid(value):
         return Result.of(uuid.UUID(value))
     except (ValueError, TypeError, AttributeError):
         return Result.error("must be a UUID")
+
+
 validators["user_id"] = _validate_uuid
 validators["key_id"] = _validate_uuid
 validators["verification_code"] = _validate_uuid
@@ -76,6 +78,8 @@ def _validate_authorization_header(signature):
     if not match:
         return Result.error(SIGNATURE_PATTERN_HUMAN)
     return Result.of(match.groupdict())
+
+
 validators["authorization_header"] = _validate_authorization_header
 
 
@@ -83,6 +87,8 @@ def _validate_email(email):
     if "@" not in email or len(email) < 3:
         return Result.error("must contain @ and be at least 3 characters")
     return Result.of(email)
+
+
 validators["email"] = _validate_email
 
 
@@ -90,6 +96,8 @@ def _validate_username(username):
     if not USERNAME_PATTERN.match(username):
         return Result.error("must start with a letter; only letters and digits; between 3 and 16 characters long")
     return Result.of(username)
+
+
 validators["username"] = _validate_username
 
 
@@ -112,6 +120,7 @@ def _validate_public_key(public):
             continue
     return Result.error("Malformed public key")
 
+
 validators["public_key"] = _validate_public_key
 
 
@@ -121,4 +130,6 @@ def _validate_password_hash(password_hash):
     if not BCRYPT_HASH_PATTERN.match(password_hash):
         return Result.error("Must be a password hash (did you forget to bcrypt?)")
     return Result.of(password_hash)
+
+
 validators["password_hash"] = _validate_password_hash
