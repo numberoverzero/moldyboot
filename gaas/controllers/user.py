@@ -57,7 +57,7 @@ class UserManager:
             raise NotFound
         return username
 
-    def get_username_by_user_id(self, user_id: Union[str, uuid.UUID]) -> UserName:  # pragma: no cover
+    def get_username_by_user_id(self, user_id: Union[str, uuid.UUID]) -> UserName:
         user_id = validate("user_id", user_id)
         query = self.engine.query(UserName.by_user_id)\
             .key(UserName.user_id == user_id)\
