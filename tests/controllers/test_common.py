@@ -1,33 +1,33 @@
 import pytest
 
-from bloop import Column, Integer, ConstraintViolation, GlobalSecondaryIndex, new_base
+from bloop import Column, Integer, ConstraintViolation, GlobalSecondaryIndex, BaseModel
 
 from gaas.controllers import NotSaved, persist_unique, if_not_exist
 
 
 @pytest.fixture
 def model(mock_engine):
-    class Model(new_base()):
+    class Model(BaseModel):
         id = Column(Integer, hash_key=True)
         data = Column(Integer)
 
-        by_data = GlobalSecondaryIndex(hash_key="data")
+        by_data = GlobalSecondaryIndex(projection="keys", hash_key="data")
 
-    mock_engine.bind(base=Model)
+    mock_engine.bind(Model)
     return Model
 
 
 def test_if_not_exist(mock_engine):
     """Condition uses hash or hash & range depending on model"""
-    class HashOnly(new_base()):
+    class HashOnly(BaseModel):
         id = Column(Integer, hash_key=True)
 
-    class HashAndRange(new_base()):
+    class HashAndRange(BaseModel):
         h = Column(Integer, hash_key=True)
         r = Column(Integer, range_key=True)
 
-    mock_engine.bind(base=HashOnly)
-    mock_engine.bind(base=HashAndRange)
+    mock_engine.bind(HashOnly)
+    mock_engine.bind(HashAndRange)
 
     assert if_not_exist(HashOnly()) == HashOnly.id.is_(None)
     assert if_not_exist(HashAndRange()) == HashAndRange.h.is_(None) & HashAndRange.r.is_(None)

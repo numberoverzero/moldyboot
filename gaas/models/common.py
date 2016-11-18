@@ -1,2 +1,3 @@
-import bloop
-BaseModel = bloop.new_base()
+from bloop import BaseModel
+
+__all__ = ["BaseModel"]

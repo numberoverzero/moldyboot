@@ -28,7 +28,7 @@ class KeyManager:
         key = Key(user_id=user_id, key_id=key_id)
         try:
             self.engine.load(key, consistent=True)
-        except bloop.NotModified:
+        except bloop.MissingObjects:
             raise NotFound
         if key.is_expired:
             self.revoke(key)

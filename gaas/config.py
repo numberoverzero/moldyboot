@@ -16,8 +16,11 @@ redis_connection = redis.StrictRedis(port=redis_port)
 queue = rq.Queue(connection=redis_connection)
 
 session = boto3.session.Session(profile_name="gaas-integ")
-engine = bloop.Engine(client=bloop.Client(boto_client=session.client("dynamodb")))
-engine.bind(base=BaseModel)
+engine = bloop.Engine(
+    dynamodb=session.client("dynamodb"),
+    dynamodbstreams=session.client("dynamodbstreams")
+)
+engine.bind(BaseModel)
 
 key_manager = KeyManager(engine)
 user_manager = UserManager(engine)

@@ -44,7 +44,7 @@ class UserManager:
         user = User(user_id=user_id)
         try:
             self.engine.load(user)
-        except bloop.NotModified:
+        except bloop.MissingObjects:
             raise NotFound
         return user
 
@@ -53,7 +53,7 @@ class UserManager:
         username = UserName(username=username)
         try:
             self.engine.load(username)
-        except bloop.NotModified:
+        except bloop.MissingObjects:
             raise NotFound
         return username
 

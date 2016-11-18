@@ -98,7 +98,7 @@ def test_get_missing(key_manager):
     key_id = uuid.uuid4()
 
     def load(item, *args, **kwargs):
-        raise bloop.NotModified("load", [item])
+        raise bloop.MissingObjects(objects=[item])
     key_manager.engine.load.side_effect = load
 
     with pytest.raises(NotFound):

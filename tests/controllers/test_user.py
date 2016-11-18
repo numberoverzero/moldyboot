@@ -103,7 +103,7 @@ def test_get_invalid_user(user_manager):
 def test_get_unknown_user(user_manager):
     user_id = uuid.uuid4()
     expected_user = User(user_id=user_id)
-    user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_user])
+    user_manager.engine.load.side_effect = bloop.MissingObjects(objects=[expected_user])
 
     with pytest.raises(NotFound):
         user_manager.get_user(user_id)
@@ -130,7 +130,7 @@ def test_get_invalid_username(user_manager):
 def test_get_unknown_username(user_manager):
     username = "fooBar00"
     expected_username = UserName(username=username)
-    user_manager.engine.load.side_effect = bloop.NotModified("load", [expected_username])
+    user_manager.engine.load.side_effect = bloop.MissingObjects(objects=[expected_username])
 
     with pytest.raises(NotFound):
         user_manager.get_username(username)

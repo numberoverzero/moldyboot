@@ -14,7 +14,7 @@ class UserName(BaseModel):
     created = Column(DateTime, name="c")
 
     by_user_id = GlobalSecondaryIndex(
-        projection="keys_only", hash_key="user_id", name="by_u")
+        projection="keys", hash_key="user_id", name="by_u")
 
 
 class User(BaseModel):

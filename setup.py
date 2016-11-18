@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 requirements = [
     "arrow==0.7.0",
     "bcrypt==2.0.0",
-    "bloop==0.9.11",
+    "bloop==1.0.0",
     "boto3==1.3.1",
     "click==6.6",
     "cryptography==1.5.2",
