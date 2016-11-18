@@ -78,6 +78,8 @@ class Authentication:
 
     def process_resource(self, req: falcon.Request, resp: falcon.Response, resource, params):
         if req.method.lower() == "options":
+            # TODO CORS requests don't need to sign
+            # TODO add unit test
             return
         # Auth bypass (ie. email verification)
         if has_tag(resource, req.method, "authentication-skip"):
