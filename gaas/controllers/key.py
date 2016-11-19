@@ -39,9 +39,10 @@ class KeyManager:
 
     def list_keys(self, user_id: Union[str, uuid.UUID]) -> Sequence[Key]:
         user_id = validate("user_id", user_id)
-        return self.engine.query(Key)\
-            .key(Key.user_id == user_id)\
-            .all(prefetch=0)
+        return self.engine.query(
+            Key,
+            key=Key.user_id == user_id,
+        )
 
     def revoke(self, key: Key, force: Optional[bool]=False) -> Key:
         # By default revokes are atomic, so that we don't accidentally blow away a key

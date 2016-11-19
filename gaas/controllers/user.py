@@ -59,17 +59,13 @@ class UserManager:
 
     def get_username_by_user_id(self, user_id: Union[str, uuid.UUID]) -> UserName:
         user_id = validate("user_id", user_id)
-        query = self.engine.query(UserName.by_user_id)\
-            .key(UserName.user_id == user_id)\
-            .all(prefetch=0)
-        first = next(query, None)
-        if first is None:
+        try:
+            return self.engine.query(
+                UserName.by_user_id,
+                key=UserName.user_id == user_id
+            ).one()
+        except bloop.ConstraintViolation:
             raise NotFound
-        second = next(query, None)
-        if second is not None:
-            # TODO log duplicate id
-            raise NotFound
-        return first
 
     def delete_user(self, user_id: Union[str, uuid.UUID]) -> User:
         user_id = validate("user_id", user_id)
