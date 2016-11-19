@@ -30,8 +30,9 @@ def persist_unique(obj, engine, field, rnd, max_tries=10):
 
 def if_not_exist(obj):
     """Construct a condition that expects hash (and range, if there is one) to be None"""
-    # http://bloop.readthedocs.io/en/latest/user/patterns.html#generic-if-not-exist
-    condition = bloop.Condition()
-    for key in obj.Meta.keys:
-        condition &= key.is_(None)
+    hash_key = obj.Meta.hash_key
+    range_key = obj.Meta.range_key
+    condition = hash_key.is_(None)
+    if range_key:
+        condition &= range_key.is_(None)
     return condition
