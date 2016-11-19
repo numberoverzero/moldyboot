@@ -1,5 +1,5 @@
-from bloop import Binary, Boolean, Column, DateTime, GlobalSecondaryIndex, String, UUID
-
+from bloop import Binary, Boolean, Column, GlobalSecondaryIndex, String, UUID
+from bloop.ext.arrow import DateTime
 from .common import BaseModel
 
 

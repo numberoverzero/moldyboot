@@ -5,7 +5,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives import serialization
-from bloop import Binary, Column, DateTime, UUID
+from bloop import Binary, Column, UUID
+from bloop.ext.arrow import DateTime
 
 from .common import BaseModel
 
