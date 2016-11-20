@@ -9,6 +9,11 @@ context = {
     "endpoints": {
         "api": api_endpoint.geturl(),
         "console": console_endpoint.geturl()
+    },
+    "webcrypto": {
+        "databaseName": "GAASDatabase",
+        "databaseVersion": 1,
+        "objectStoreName": "GAASKeyStore"
     }
 }
 renderer = FileRenderer(context)
