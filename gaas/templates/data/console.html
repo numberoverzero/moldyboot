@@ -33,27 +33,13 @@
     </main>
 </div>
 
-<!-- jsrsasign 6.1.1, jQuery 3.1.1 -->
-<script
-    src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/6.1.1/jsrsasign.js"
-    integrity="sha256-a6Z6XBTDHAUrZ0DlArG6H8wKf1XXuHR7qS4lu1eHCHY="
-    crossorigin="anonymous"
-    type="application/javascript"
-></script>
-<script
-    src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.js"
-    integrity="sha256-16cdPddA6VdVInumRGo6IbivbERE8p7CQR3HzTBuELA="
-    crossorigin="anonymous"
-    type="application/javascript"
-></script>
-<script src="{{endpoints.console}}/scripts/gaas-crypto.js" type="text/javascript"></script>
-<script type="application/javascript">
-    "use strict";
-    api.getKey().done(function(response){
-        $("#keyId").text(response.key_id);
-        $("#fingerprint").text(response.fingerprint);
-        $("#keySection").show();
-    });
-</script>
+<!--<script type="application/javascript">-->
+    <!--"use strict";-->
+    <!--api.getKey().done(function(response){-->
+        <!--$("#keyId").text(response.key_id);-->
+        <!--$("#fingerprint").text(response.fingerprint);-->
+        <!--$("#keySection").show();-->
+    <!--});-->
+<!--</script>-->
 </body>
 </html>
