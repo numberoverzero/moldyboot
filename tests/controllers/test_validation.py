@@ -5,6 +5,7 @@ import bcrypt
 import pytest
 
 from gaas.controllers import InvalidParameter, validate
+from gaas.security.jwk import i2b64
 
 from cryptography.hazmat.primitives import serialization
 
@@ -141,7 +142,12 @@ def test_valid_public_key(rsa_pub):
         rsa_pub.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ).decode("utf-8")
+        ).decode("utf-8"),
+        # JWK
+        {
+            "n": i2b64(rsa_pub.public_numbers().n),
+            "e": i2b64(rsa_pub.public_numbers().e)
+        }
     ]
     for valid_key in valid_keys:
         validated = validate("public_key", valid_key)

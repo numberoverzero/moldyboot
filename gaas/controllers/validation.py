@@ -6,6 +6,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives import serialization
 
+from ..security import jwk
+
 validators = {}
 __all__ = ["validate", "InvalidParameter"]
 
@@ -109,14 +111,15 @@ def _validate_public_key(public):
     for loader in [
         serialization.load_pem_public_key,
         serialization.load_der_public_key,
-        serialization.load_ssh_public_key
+        serialization.load_ssh_public_key,
+        jwk.load_public_key
     ]:
         try:
             return Result.of(loader(
                 data=public,
                 backend=default_backend()
             ))
-        except (ValueError, UnsupportedAlgorithm):
+        except (TypeError, ValueError, AttributeError, UnsupportedAlgorithm):
             continue
     return Result.error("Malformed public key")
 
