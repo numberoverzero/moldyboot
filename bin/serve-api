@@ -3,7 +3,7 @@ import falcon
 import falcon_cors
 
 from wsgiref import simple_server
-from gaas.config import api_endpoint, async_tasks, console_endpoint, key_manager, user_manager
+from config import api_endpoint, async_tasks, console_endpoint, key_manager, user_manager
 from gaas.middleware import Authentication, TranslateJSON
 from gaas.resources.api import Keys, Signup, Verifications
 

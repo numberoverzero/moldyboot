@@ -2,7 +2,7 @@
 import falcon
 
 from wsgiref import simple_server
-from gaas.config import api_endpoint, console_endpoint
+from config import api_endpoint, console_endpoint
 from gaas.resources.console import FileRenderer
 
 context = {

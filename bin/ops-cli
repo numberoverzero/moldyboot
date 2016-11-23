@@ -3,7 +3,7 @@ import click
 import json
 import time
 
-from gaas.config import api_endpoint, async_tasks, user_manager
+from config import api_endpoint, async_tasks, user_manager
 from gaas.controllers import AlreadyExists, NotFound, NotSaved
 from gaas.security import passwords
 

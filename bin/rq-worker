@@ -3,7 +3,7 @@
 import logging
 import rq
 
-from gaas.config import api_endpoint, session, key_manager, user_manager, queue
+from config import api_endpoint, session, key_manager, user_manager, queue
 from gaas.tasks import RedisContext
 
 logger = logging.getLogger(__name__)

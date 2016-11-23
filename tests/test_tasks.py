@@ -1,15 +1,17 @@
 import pytest
 import rq
+import urllib.parse
 import uuid
 
 from gaas import templates
-from gaas.config import api_endpoint
 from gaas.controllers import InvalidParameter, NotFound, NotSaved
 from gaas.models import Key, User, UserName
 from gaas.tasks import AsyncTasks, RedisContext, Result, _delete_user, _send_verification
 
 
 from unittest.mock import Mock
+
+api_endpoint = urllib.parse.urlsplit("http://127.0.0.1:8010")
 
 
 @pytest.fixture
@@ -27,7 +29,7 @@ def async_tasks(queue):
     return AsyncTasks(queue)
 
 
-@pytest.fixture
+@pytest.yield_fixture(autouse=True)
 def redis_context(mock_user_manager, mock_key_manager, boto3_session):
     RedisContext.initialize(
         user_manager=mock_user_manager,
@@ -35,6 +37,7 @@ def redis_context(mock_user_manager, mock_key_manager, boto3_session):
         session=boto3_session,
         endpoint=api_endpoint
     )
+    yield
 
 
 @pytest.yield_fixture(autouse=True)
@@ -71,12 +74,18 @@ def test_result_failed_custom():
 # RedisContext ========================================================================================== RedisContext
 
 def test_double_context_initialize(mock_user_manager, mock_key_manager, boto3_session):
+    # Clear context from autouse fixture
+    RedisContext.singleton = None
+    # Actual test
     RedisContext.initialize(mock_user_manager, mock_key_manager, boto3_session, api_endpoint)
     with pytest.raises(RuntimeError):
         RedisContext.initialize(mock_user_manager, mock_key_manager, boto3_session, api_endpoint)
 
 
 def test_not_initialized():
+    # Clear context from autouse fixture
+    RedisContext.singleton = None
+    # Actual test
     with pytest.raises(RuntimeError):
         _send_verification("user")
 
@@ -99,7 +108,7 @@ def test_async_delete_user(async_tasks, queue):
 
 # send verification ================================================================================ send verification
 
-def test_email_username_invalid(ses, mock_user_manager, redis_context):
+def test_email_username_invalid(ses, mock_user_manager):
     username = "-unknown+user"
     mock_user_manager.get_username.side_effect = InvalidParameter("username", username, "test message")
 
@@ -109,7 +118,7 @@ def test_email_username_invalid(ses, mock_user_manager, redis_context):
     ses.send_email.assert_not_called()
 
 
-def test_email_username_not_found(ses, mock_user_manager, redis_context):
+def test_email_username_not_found(ses, mock_user_manager):
     username = "user"
     mock_user_manager.get_username.side_effect = NotFound
 
@@ -119,7 +128,7 @@ def test_email_username_not_found(ses, mock_user_manager, redis_context):
     ses.send_email.assert_not_called()
 
 
-def test_email_already_verified(ses, mock_user_manager, redis_context):
+def test_email_already_verified(ses, mock_user_manager):
     username = "user"
     user_id = uuid.uuid4()
     # No verification_code
@@ -133,7 +142,7 @@ def test_email_already_verified(ses, mock_user_manager, redis_context):
     ses.send_email.assert_not_called()
 
 
-def test_email_success(ses, mock_user_manager, redis_context):
+def test_email_success(ses, mock_user_manager):
     username = "user"
     user_id = uuid.uuid4()
     email = "user@domain.com"
@@ -171,7 +180,7 @@ def test_email_success(ses, mock_user_manager, redis_context):
 
 # delete user ============================================================================================ delete user
 
-def test_delete_user_invalid_username(mock_user_manager, mock_key_manager, redis_context):
+def test_delete_user_invalid_username(mock_user_manager, mock_key_manager):
     username = "-unknown+user"
     mock_user_manager.get_username.side_effect = InvalidParameter("username", username, "test message")
 
@@ -183,7 +192,7 @@ def test_delete_user_invalid_username(mock_user_manager, mock_key_manager, redis
     mock_key_manager.revoke.assert_not_called()
 
 
-def test_delete_user_unknown_username(mock_user_manager, mock_key_manager, redis_context):
+def test_delete_user_unknown_username(mock_user_manager, mock_key_manager):
     username = "user"
     mock_user_manager.get_username.side_effect = NotFound
 
@@ -195,7 +204,7 @@ def test_delete_user_unknown_username(mock_user_manager, mock_key_manager, redis
     mock_key_manager.revoke.assert_not_called()
 
 
-def test_delete_user_not_exists(mock_user_manager, mock_key_manager, redis_context):
+def test_delete_user_not_exists(mock_user_manager, mock_key_manager):
     username = "user"
     user_id = uuid.uuid4()
     mock_user_manager.get_username.return_value = UserName(username=username, user_id=user_id)
@@ -209,7 +218,7 @@ def test_delete_user_not_exists(mock_user_manager, mock_key_manager, redis_conte
     mock_key_manager.revoke.assert_not_called()
 
 
-def test_delete_user_keys(mock_user_manager, mock_key_manager, redis_context):
+def test_delete_user_keys(mock_user_manager, mock_key_manager):
     username = "user"
     user_id = uuid.uuid4()
     first_key_id = uuid.uuid4()
