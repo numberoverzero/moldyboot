@@ -1,5 +1,0 @@
-recursive-include *.html
-recursive-include *.txt
-
-recursive-exclude tests *
-recursive-exclude examples *
