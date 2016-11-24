@@ -7,8 +7,11 @@
 <body>
 <script type="application/javascript">
     "use strict";
-    var req = indexedDB.deleteDatabase("{{webcrypto.databaseName}}")
-    req.onerror = req.onsuccess = req.onblocked = req.onupgradeneeded = console.log;
+    var req = indexedDB.deleteDatabase("{{webcrypto.databaseName}}");
+    req.onerror = req.onsuccess = req.onblocked = req.onupgradeneeded = function(event) {
+        console.log(event);
+        window.location.href = "{{endpoints.console}}/login";
+    }
 </script>
 </body>
 </html>
