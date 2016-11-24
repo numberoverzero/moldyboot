@@ -24,17 +24,39 @@
             <pre><code id="keyId"></code></pre>
             <p>Your key's sha256 fingerprint is:</p>
             <pre><code id="fingerprint"></code></pre>
+            <p>Your key is good until:</p>
+            <pre><code id="until"></code></pre>
         </section>
     </main>
 </div>
 
-<!--<script type="application/javascript">-->
-    <!--"use strict";-->
-    <!--api.getKey().done(function(response){-->
-        <!--$("#keyId").text(response.key_id);-->
-        <!--$("#fingerprint").text(response.fingerprint);-->
-        <!--$("#keySection").show();-->
-    <!--});-->
-<!--</script>-->
+<!-- superagent 3.0.0 -->
+<script
+    src="{{endpoints.console}}/js/superagent.min.js"
+    integrity="sha256-m8kXJRap0QWyl4ZLRGUGDwgnmZOYGY0Vf6IQp/NSrjY="
+    type="application/javascript"
+></script>
+<!-- gaasKeys, gaasKeyStore, api -->
+<script src="{{endpoints.console}}/js/gaas.js" type="text/javascript"></script>
+<script type="application/javascript">
+    "use strict";
+    var el = document.getElementById.bind(document);
+
+    Client.loadActiveUser()
+    .then(function(client) {return client.getKey();})
+    .then(function(response) {
+        console.log(response);
+        if (response.ok) {
+            el("keyId").textContent = response.body.key_id;
+            el("fingerprint").textContent = response.body.fingerprint;
+            el("until").textContent = (new Date(response.body.until)).toLocaleTimeString();
+            el("keySection").style.display = "";
+        } else {
+            console.log("Failed to validate key!");
+            console.log(response);
+        }
+    })
+    .catch(console.log);
+</script>
 </body>
 </html>

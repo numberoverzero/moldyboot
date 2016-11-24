@@ -51,7 +51,6 @@
 
     // Submit form against the API, not the console
     el("login-form").addEventListener("submit", function(event) {
-        console.log("onsubmit fired");
         event.preventDefault();
         $loginButton.setAttribute("disabled", true);
         var username = $username.value,
@@ -59,8 +58,8 @@
 
         var FAIL = console.log;
         api.login(username, password)
+        .then(function() {return gaasKeyStore.setActiveUser(username);})
         .then(function () {
-            console.log("logged in!");
             $loginButton.removeAttribute("disabled");
             $loginStatus.style.display = "none";
             window.location.href = "{{endpoints.console}}/console";
