@@ -53,7 +53,8 @@ cors = falcon_cors.CORS(
         "https://moldyboot.com"
     ],
     allow_all_methods=True,
-    allow_all_headers=True)
+    allow_all_headers=True,
+    max_age="600")
 api = application = falcon.API(
     middleware=[
         cors.middleware,

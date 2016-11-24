@@ -10,7 +10,9 @@ from gaas.resources.api import Keys, Signup, Verifications
 cors = falcon_cors.CORS(
     allow_origins_list=[console_endpoint.geturl()],
     allow_all_methods=True,
-    allow_all_headers=True)
+    allow_all_headers=True,
+    max_age="600"
+)
 api = application = falcon.API(
     middleware=[
         cors.middleware,
