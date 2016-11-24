@@ -1,6 +1,10 @@
 Host Bootstrap Notes
 ^^^^^^^^^^^^^^^^^^^^
 
+Copy the cloudflare origin pull certs from:
+
+https://support.cloudflare.com/hc/en-us/article_attachments/201243967/origin-pull-ca.pem
+
 apt-get install:
 
 xclip

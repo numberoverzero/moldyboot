@@ -6,9 +6,14 @@ server {
     access_log /var/log/nginx/console/access.log;
     error_log  /var/log/nginx/console/error.log;
 
+    # only respond to CloudFlare's cert
+    ssl_client_certificate /etc/nginx/ssl/origin-pull-ca.pem;
+    ssl_verify_client on;
+
     # certs sent to the client in SERVER HELLO are concatenated in ssl_certificate
     ssl_certificate /etc/nginx/certs/moldyboot.com/fullchain.pem;
     ssl_certificate_key /etc/nginx/certs/moldyboot.com/key.pem;
+
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:50m;
     ssl_session_tickets off;
