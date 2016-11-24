@@ -1,5 +1,6 @@
 "use strict";
-
+(function(){
+var crypto = window.crypto.subtle;
 Object.filter = function(src, predicate) {
     var dst = {}, key;
     for (key in src) {
@@ -18,51 +19,63 @@ Object.merge = function (dst, src) {
     return dst;
 };
 
-var gaasKeys = (function() {
+// https://gist.github.com/joni/3760795
+function toUTF8Array(str) {
+    var utf8 = [];
+    for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+            utf8.push(0xc0 | (charcode >> 6),
+                      0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+            utf8.push(0xe0 | (charcode >> 12),
+                      0x80 | ((charcode>>6) & 0x3f),
+                      0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+            i++;
+            // UTF-16 encodes 0x10000-0x10FFFF by
+            // subtracting 0x10000 and splitting the
+            // 20 bits of 0x0-0xFFFFF into two halves
+            charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+                      | (str.charCodeAt(i) & 0x3ff))
+            utf8.push(0xf0 | (charcode >>18),
+                      0x80 | ((charcode>>12) & 0x3f),
+                      0x80 | ((charcode>>6) & 0x3f),
+                      0x80 | (charcode & 0x3f));
+        }
+    }
+    return new Uint8Array(utf8);
+}
+
+// http://stackoverflow.com/a/12713326
+function Uint8ToString(u8a){
+    var CHUNK_SZ = 0x8000;
+    var c = [];
+    for (var i=0; i < u8a.length; i+=CHUNK_SZ) {
+        c.push(String.fromCharCode.apply(null, u8a.subarray(i, i+CHUNK_SZ)));
+    }
+    return c.join("");
+}
+
+function sha256(str) {
+    return new Promise(function(resolve, reject) {
+        var strArray = toUTF8Array(str);
+        crypto.digest("SHA-256", strArray)
+        .then(function(hash) {
+            return btoa(Uint8ToString(new Uint8Array(hash)));
+        })
+        .then(resolve)
+        .catch(reject);
+    });
+}
+
+
+window.gaasKeys = (function() {
     var self = {};
-    var crypto = window.crypto.subtle;
-
-    // https://gist.github.com/joni/3760795
-    function toUTF8Array(str) {
-        var utf8 = [];
-        for (var i=0; i < str.length; i++) {
-            var charcode = str.charCodeAt(i);
-            if (charcode < 0x80) utf8.push(charcode);
-            else if (charcode < 0x800) {
-                utf8.push(0xc0 | (charcode >> 6),
-                          0x80 | (charcode & 0x3f));
-            }
-            else if (charcode < 0xd800 || charcode >= 0xe000) {
-                utf8.push(0xe0 | (charcode >> 12),
-                          0x80 | ((charcode>>6) & 0x3f),
-                          0x80 | (charcode & 0x3f));
-            }
-            // surrogate pair
-            else {
-                i++;
-                // UTF-16 encodes 0x10000-0x10FFFF by
-                // subtracting 0x10000 and splitting the
-                // 20 bits of 0x0-0xFFFFF into two halves
-                charcode = 0x10000 + (((charcode & 0x3ff)<<10)
-                          | (str.charCodeAt(i) & 0x3ff))
-                utf8.push(0xf0 | (charcode >>18),
-                          0x80 | ((charcode>>12) & 0x3f),
-                          0x80 | ((charcode>>6) & 0x3f),
-                          0x80 | (charcode & 0x3f));
-            }
-        }
-        return new Uint8Array(utf8);
-    }
-
-    // http://stackoverflow.com/a/12713326
-    function Uint8ToString(u8a){
-        var CHUNK_SZ = 0x8000;
-        var c = [];
-        for (var i=0; i < u8a.length; i+=CHUNK_SZ) {
-            c.push(String.fromCharCode.apply(null, u8a.subarray(i, i+CHUNK_SZ)));
-        }
-        return c.join("");
-    }
 
     function calculateMaxSaltLength (keyLen, hash) {
         var digestLen;
@@ -127,7 +140,8 @@ var gaasKeys = (function() {
     return self;
 }());
 
-var gaasKeyStore = (function() {
+
+window.gaasKeyStore = (function() {
     var self = {};
     var database = null;
 
@@ -289,7 +303,8 @@ var gaasKeyStore = (function() {
     return self;
 }());
 
-var api = (function() {
+
+window.api = (function() {
     var self = {};
     self.endpoint = "{{endpoints.api}}";
 
@@ -333,39 +348,73 @@ var api = (function() {
         });
     };
 
-    self.get = function(keyBlob, path, additionalHeaders) {
-        var headers = Object.merge({
-                "x-date": new Date().toISOString(),
-                "content-length": "0",
-                // fixed sha256 of the empty string
-                "x-content-sha256": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
-                "(request-target)": "get " + path}, additionalHeaders),
-            signed_headers = Object.keys(headers),
-            string_to_sign = signed_headers.map(function(name) {
-                return name.toLowerCase() + ": " + headers[name];
-            }).join("\n");
+    self.sign = function(keyBlob, method, path, headers, body) {
+        return sha256(body)
+        .then(function(xContentSha256) {
+            var headers = Object.merge({
+                    "x-date": new Date().toISOString(),
+                    "content-type": "application/json",
+                    "content-length": "" + body.length,
+                    // fixed sha256 of the empty string
+                    "x-content-sha256": xContentSha256,
+                    "(request-target)": method + " " + path}, (headers || {})),
+                signed_headers = Object.keys(headers),
+                string_to_sign = signed_headers.map(function(name) {
+                    return name.toLowerCase() + ": " + headers[name];
+                }).join("\n");
 
-        return new Promise(function (resolve, reject) {
-            gaasKeys.sign(keyBlob, string_to_sign)
+            return gaasKeys.sign(keyBlob, string_to_sign)
             .then(function (signature) {
                 var authorization = [
-                    'Signature',
-                    'headers="' + signed_headers.join(" ") + '"',
-                    'id="' + keyBlob.id + '"',
-                    'signature="' + signature + '"'
+                   'Signature',
+                   'headers="' + signed_headers.join(" ") + '"',
+                   'id="' + keyBlob.id + '"',
+                   'signature="' + signature + '"'
                 ].join(" ");
                 headers = Object.merge(headers, {"authorization": authorization});
                 headers = Object.filter(headers, function(h) {return h !== "(request-target)";});
+                return headers;
+            });
+        });
+    };
+
+    self.get = function(keyBlob, path, headers) {
+        return new Promise(function (resolve, reject) {
+            self.sign(keyBlob, "get", path, headers, "")
+            .then(function(headers) {
                 return window.superagent.get(self.endpoint + path).set(headers);
             })
             .then(resolve)
             .catch(reject);
         });
     };
+
+    self.post = function(keyBlob, path, headers, body) {
+        var strBody = body;
+        if (typeof strBody === "undefined") {
+            strBody = "";
+        } else if (typeof body !== "string") {
+            strBody = JSON.stringify(body);
+        } // else already a string
+
+        return new Promise(function (resolve, reject) {
+            self.sign(keyBlob, "post", path, (headers || {}), strBody)
+            .then(function(headers) {
+                return window.superagent
+                    .post(self.endpoint + path)
+                    .set(headers)
+                    .send(strBody);
+            })
+            .then(resolve)
+            .catch(reject);
+        });
+    };
+
     return self;
 }());
 
-var Client = function(username) {
+
+window.Client = function(username) {
     var self = this;
     self.username = username;
 
@@ -381,7 +430,7 @@ var Client = function(username) {
         });
     };
 };
-Client.loadActiveUser = function() {
+window.Client.loadActiveUser = function() {
     return new Promise(function (resolve, reject) {
         gaasKeyStore.getActiveUser()
         .then(function(username) {return new Client(username);})
@@ -389,3 +438,4 @@ Client.loadActiveUser = function() {
         .catch(reject);
     });
 };
+}());
