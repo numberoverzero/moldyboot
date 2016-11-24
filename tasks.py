@@ -46,29 +46,31 @@ def deploy_nginx():
     print("=" * 80)
     print("Deploying Nginx")
     print("-" * 80)
-    copy_file("nginx/nginx-https-only", "/services/nginx-https-only")
+    copy_files(
+        ("nginx/nginx.conf", "/etc/nginx/nginx.conf"),
+        ("nginx/certs/origin-pull.pem", "/etc/nginx/certs/cloudflare/origin-pull.pem"),
+        ("nginx/certs/x3-cross-signed.pem", "/etc/nginx/certs/letsencrypt/x3-cross-signed.pem")
+    )
 
 
 def deploy_api():
-    dst = "/services/api/"
     print("=" * 80)
     print("Deploying API")
     print("-" * 80)
-    print("Copying gaas.whl, server requirements, and credentials to host")
-    copy_file("dist/" + WHL_NAME, dst + WHL_NAME)
-    copy_file("nginx/api/requirements.txt", dst + "requirements.txt")
-    with credentials_file(PROFILE_NAME) as file:
-        copy_file(file.name, dst + ".credentials/aws")
 
-    print("Copying server artifacts to host")
-    copy_file("nginx/api/serve.sh", dst + "serve.sh")
-    copy_file("nginx/api/server.py", dst + "server.py")
-    copy_file("nginx/api/uwsgi.ini", dst + "uwsgi.ini")
-    copy_file("nginx/api/api.moldyboot.com", dst + "api.moldyboot.com")
-    print("If the systemd api.service has changed, you will need to manually copy it over.")
+    dst = "/services/api/"
+    with credentials_file(PROFILE_NAME) as file:
+        copy_files(
+            (file.name, dst + ".credentials/aws"),
+            ("dist/" + WHL_NAME, dst + WHL_NAME),
+            ("nginx/api/requirements.txt", dst + "requirements.txt"),
+            ("nginx/api/serve.sh", dst + "serve.sh"),
+            ("nginx/api/server.py", dst + "server.py"),
+            ("nginx/api/uwsgi.ini", dst + "uwsgi.ini"),
+            ("nginx/api/api.moldyboot.com", dst + "api.moldyboot.com")
+        )
 
     in_venv = "source /services/api/.venv/bin/activate && "
-
     remote_commands(
         in_venv + "pip install -r/services/api/requirements.txt",
         in_venv + "pip install --upgrade " + dst + WHL_NAME,
@@ -77,23 +79,21 @@ def deploy_api():
 
 
 def deploy_console():
-    dst = "/services/console/"
     print("=" * 80)
     print("Deploying Console")
     print("-" * 80)
-    print("Copying gaas.whl, server requirements to host")
-    copy_file("dist/" + WHL_NAME, dst + WHL_NAME)
-    copy_file("nginx/console/requirements.txt", dst + "requirements.txt")
 
-    print("Copying server artifacts to host")
-    copy_file("nginx/console/serve.sh", dst + "serve.sh")
-    copy_file("nginx/console/server.py", dst + "server.py")
-    copy_file("nginx/console/uwsgi.ini", dst + "uwsgi.ini")
-    copy_file("nginx/console/console.moldyboot.com", dst + "console.moldyboot.com")
-    print("If the systemd console.service has changed, you will need to manually copy it over.")
+    dst = "/services/console/"
+    copy_files(
+        ("dist/" + WHL_NAME, dst + WHL_NAME),
+        ("nginx/console/requirements.txt", dst + "requirements.txt"),
+        ("nginx/console/serve.sh", dst + "serve.sh"),
+        ("nginx/console/server.py", dst + "server.py"),
+        ("nginx/console/uwsgi.ini", dst + "uwsgi.ini"),
+        ("nginx/console/console.moldyboot.com", dst + "console.moldyboot.com")
+    )
 
     in_venv = "source /services/console/.venv/bin/activate && "
-
     remote_commands(
         in_venv + "pip install -r/services/console/requirements.txt",
         in_venv + "pip install --upgrade " + dst + WHL_NAME,
@@ -101,10 +101,12 @@ def deploy_console():
     )
 
 
-def copy_file(localpath, remotepath, hostname=API_HOST_IP, username=API_DEPLOY_USER):
+def copy_files(*files, hostname=API_HOST_IP, username=API_DEPLOY_USER):
     with ssh_client(hostname=hostname, username=username) as client:
         sftp = client.open_sftp()  # type: paramiko.SFTPClient
-        sftp.put(localpath, remotepath, confirm=True)
+        for local, remote in files:
+            print("cp {} >> {}".format(local, remote))
+            sftp.put(local, remote, confirm=True)
 
 
 def remote_commands(*commands, hostname=API_HOST_IP, username=API_DEPLOY_USER):
