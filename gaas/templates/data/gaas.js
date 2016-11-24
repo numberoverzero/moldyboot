@@ -1,5 +1,23 @@
 "use strict";
 
+Object.filter = function(src, predicate) {
+    var dst = {}, key;
+    for (key in src) {
+        if (src.hasOwnProperty(key) && predicate(key)) {
+            dst[key] = src[key];
+        }
+    }
+    return dst;
+};
+Object.merge = function (dst, src) {
+    for (var key in src) {
+        if (src.hasOwnProperty(key)) {
+            dst[key] = src[key];
+        }
+    }
+    return dst;
+};
+
 var gaasKeys = (function() {
     var self = {};
     var crypto = window.crypto.subtle;
@@ -106,7 +124,6 @@ var gaasKeys = (function() {
             .catch(reject);
         });
     };
-
     return self;
 }());
 
@@ -126,14 +143,41 @@ var gaasKeyStore = (function() {
                 };
                 openPromise.onupgradeneeded = function (event) {
                     database = event.target.result;
-                    if (!database.objectStoreNames.contains("{{webcrypto.objectStoreName}}")) {
-                        var objectStore = database.createObjectStore("{{webcrypto.objectStoreName}}", {autoIncrement: false});
-                        objectStore.transaction.oncomplete = function(event) {
-                            resolve(self);
+                    var createKeyStore = new Promise(function(resolveKeyStore, rejectKeyStore) {
+                        if (database.objectStoreNames.contains("{{webcrypto.keyStoreName}}")) {
+                            resolveKeyStore();
+                            return;
+                        }
+                        var keyTransaction = database.createObjectStore(
+                            "{{webcrypto.keyStoreName}}",
+                            {autoIncrement: false}
+                        ).transaction;
+                        keyTransaction.oncomplete = function(event) {
+                            resolveKeyStore();
                         };
-                    } else {
-                        resolve(self);
-                    }
+                        keyTransaction.onerror = keyTransaction.onabort = function(event) {
+                            rejectKeyStore(event);
+                        };
+                    });
+                    var createMetaStore = new Promise(function(resolveMetaStore, rejectMetaStore) {
+                        if (database.objectStoreNames.contains("{{webcrypto.metaStoreName}}")) {
+                            resolveMetaStore();
+                            return;
+                        }
+                        var metaTransaction = database.createObjectStore(
+                            "{{webcrypto.metaStoreName}}",
+                            {autoIncrement: false}
+                        ).transaction;
+                        metaTransaction.oncomplete = function(event) {
+                            resolveMetaStore();
+                        };
+                        metaTransaction.onerror = metaTransaction.onabort = function(event) {
+                            rejectMetaStore(event);
+                        };
+                    });
+                    Promise.all([createKeyStore, createMetaStore])
+                    .then(resolve(self))
+                    .catch(reject)
                 };
                 openPromise.onerror = function(event) {reject(event.error)};
                 openPromise.onblocked = function() {
@@ -155,15 +199,47 @@ var gaasKeyStore = (function() {
         });
     };
 
+    self.getActiveUser = function() {
+        return new Promise(function (resolve, reject) {
+            self.open()
+            .then(function() {
+                var transaction = database.transaction(["{{webcrypto.metaStoreName}}"], "readonly"),
+                    request = transaction.objectStore("{{webcrypto.metaStoreName}}").get("activeUser");
+                request.onsuccess = function(event) {
+                    var userBlob = event.target.result;
+                    if (userBlob) {
+                        resolve(userBlob.username);
+                    } else {
+                        reject(new Error("NoActiveUser"));
+                    }
+                };
+                request.onerror = reject;
+            })
+            .catch(reject);
+        });
+    };
+
+    self.setActiveUser = function(username) {
+        return new Promise(function (resolve, reject) {
+            self.open()
+            .then(function() {
+                var transaction = database.transaction(["{{webcrypto.metaStoreName}}"], "readwrite");
+                transaction.oncomplete = function() {resolve(username)};
+                transaction.onerror = transaction.onabort = function(event) {reject(event.error)};
+                transaction.objectStore("{{webcrypto.metaStoreName}}").put({username: username}, "activeUser");
+            })
+            .catch(reject);
+        });
+    };
+
     self.load = function (username, regenerate, keyLen, hash) {
         var regenerate = (typeof regenerate === 'undefined') ? false : regenerate;
         return new Promise(function (resolve, reject) {
             self.open()
             .then(function() {
                 var mode = regenerate ? "readwrite" : "readonly",
-                    transaction = database.transaction(["{{webcrypto.objectStoreName}}"], mode),
-                    objectStore = transaction.objectStore("{{webcrypto.objectStoreName}}"),
-                    request = objectStore.get(username);
+                    transaction = database.transaction(["{{webcrypto.keyStoreName}}"], mode),
+                    request = transaction.objectStore("{{webcrypto.keyStoreName}}").get(username);
                 request.onsuccess = function(event) {
                     var keyBlob = event.target.result;
                     if (keyBlob) {
@@ -197,10 +273,10 @@ var gaasKeyStore = (function() {
         return new Promise(function (resolve, reject) {
             self.open()
             .then(function() {
-                var transaction = database.transaction(["{{webcrypto.objectStoreName}}"], "readwrite");
+                var transaction = database.transaction(["{{webcrypto.keyStoreName}}"], "readwrite");
                 transaction.oncomplete = function() {resolve(keyBlob)};
-                transaction.onerror = onabort = function(event) {reject(event.error)};
-                transaction.objectStore("{{webcrypto.objectStoreName}}").put(keyBlob, username);
+                transaction.onerror = transaction.onabort = function(event) {reject(event.error)};
+                transaction.objectStore("{{webcrypto.keyStoreName}}").put(keyBlob, username);
             })
             .catch(reject);
         });
@@ -210,11 +286,10 @@ var gaasKeyStore = (function() {
         return new Promise(function (resolve, reject) {
             self.open()
             .then(function() {
-                var transaction = database.transaction(["{{webcrypto.objectStoreName}}"], "readwrite"),
-                    objectStore = transaction.objectStore("{{webcrypto.objectStoreName}}");
-                objectStore.delete(username)
-                .then(resolve)
-                .catch(reject);
+                var transaction = database.transaction(["{{webcrypto.keyStoreName}}"], "readwrite");
+                transaction.oncomplete = resolve;
+                transaction.onerror = transaction.onabort = function(event) {reject(event.error)};
+                transaction.objectStore("{{webcrypto.keyStoreName}}").delete(username);
             })
             .catch(reject);
         });
@@ -227,7 +302,7 @@ var api = (function() {
     self.endpoint = "{{endpoints.api}}";
 
     /*
-     * Can't sign the request, publicKey is part of the request
+     * Login can't sign the request, publicKey is part of the request
      */
     self.login = function(username, password) {
         return new Promise(function (resolve, reject) {
@@ -248,13 +323,16 @@ var api = (function() {
                         .send(credentials);
                 })
                 .then(function (response) {
+                    if(!response.ok) {
+                        reject(response);
+                        return;
+                    }
                     keyBlob.until = response.body.until;
                     keyBlob.id = response.body.key_id;
 
                     gaasKeyStore.save(keyBlob, username)
-                    .then(function() {
-                        resolve(response);
-                    })
+                    .then(function() {gaasKeyStore.setActiveUser(username);})
+                    .then(function() {resolve(response);})
                     .catch(reject);
                 })
                 .catch(reject);
@@ -263,7 +341,59 @@ var api = (function() {
         });
     };
 
-    self.call = function(method, path, )
+    self.get = function(keyBlob, path, additionalHeaders) {
+        var headers = Object.merge({
+                "x-date": new Date().toISOString(),
+                "content-length": "0",
+                // fixed sha256 of the empty string
+                "x-content-sha256": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+                "(request-target)": "get " + path}, additionalHeaders),
+            signed_headers = Object.keys(headers),
+            string_to_sign = signed_headers.map(function(name) {
+                return name.toLowerCase() + ": " + headers[name];
+            }).join("\n");
 
+        return new Promise(function (resolve, reject) {
+            gaasKeys.sign(keyBlob, string_to_sign)
+            .then(function (signature) {
+                var authorization = [
+                    'Signature',
+                    'headers="' + signed_headers.join(" ") + '"',
+                    'id="' + keyBlob.id + '"',
+                    'signature="' + signature + '"'
+                ].join(" ");
+                headers = Object.merge(headers, {"authorization": authorization});
+                headers = Object.filter(headers, function(h) {return h !== "(request-target)";});
+                return window.superagent.get(self.endpoint + path).set(headers);
+            })
+            .then(resolve)
+            .catch(reject);
+        });
+    };
     return self;
 }());
+
+var Client = function(username) {
+    var self = this;
+    self.username = username;
+
+    // Promise to hang execution off of.
+    self.withKey = gaasKeyStore.load(self.username, false);
+
+    self.getKey = function() {
+        return new Promise(function(resolve, reject) {
+            self.withKey
+            .then(function(keyBlob) {return api.get(keyBlob, "/keys");})
+            .then(resolve)
+            .catch(reject);
+        });
+    };
+};
+Client.loadActiveUser = function() {
+    return new Promise(function (resolve, reject) {
+        gaasKeyStore.getActiveUser()
+        .then(function(username) {return new Client(username);})
+        .then(resolve)
+        .catch(reject);
+    });
+};
