@@ -135,55 +135,47 @@ var gaasKeyStore = (function() {
         return new Promise(function (resolve, reject) {
             if (database) {
                 resolve(self);
-            } else {
-                var openPromise = indexedDB.open("{{webcrypto.databaseName}}", "{{webcrypto.databaseVersion}}");
-                openPromise.onsuccess = function(event) {
-                    database = event.target.result;
-                    resolve(self);
-                };
-                openPromise.onupgradeneeded = function (event) {
-                    database = event.target.result;
-                    var createKeyStore = new Promise(function(resolveKeyStore, rejectKeyStore) {
-                        if (database.objectStoreNames.contains("{{webcrypto.keyStoreName}}")) {
-                            resolveKeyStore();
-                            return;
-                        }
-                        var keyTransaction = database.createObjectStore(
-                            "{{webcrypto.keyStoreName}}",
-                            {autoIncrement: false}
-                        ).transaction;
-                        keyTransaction.oncomplete = function(event) {
-                            resolveKeyStore();
-                        };
-                        keyTransaction.onerror = keyTransaction.onabort = function(event) {
-                            rejectKeyStore(event);
-                        };
-                    });
-                    var createMetaStore = new Promise(function(resolveMetaStore, rejectMetaStore) {
-                        if (database.objectStoreNames.contains("{{webcrypto.metaStoreName}}")) {
-                            resolveMetaStore();
-                            return;
-                        }
-                        var metaTransaction = database.createObjectStore(
-                            "{{webcrypto.metaStoreName}}",
-                            {autoIncrement: false}
-                        ).transaction;
-                        metaTransaction.oncomplete = function(event) {
-                            resolveMetaStore();
-                        };
-                        metaTransaction.onerror = metaTransaction.onabort = function(event) {
-                            rejectMetaStore(event);
-                        };
-                    });
-                    Promise.all([createKeyStore, createMetaStore])
-                    .then(resolve(self))
-                    .catch(reject)
-                };
-                openPromise.onerror = function(event) {reject(event.error)};
-                openPromise.onblocked = function() {
-                    reject(new Error("{{webcrypto.databaseName}} is already open."));
-                };
+                return;
             }
+            var openPromise = indexedDB.open("{{webcrypto.databaseName}}", "{{webcrypto.databaseVersion}}");
+            openPromise.onsuccess = function(event) {
+                database = event.target.result;
+                resolve(self);
+            };
+            openPromise.onupgradeneeded = function (event) {
+                database = event.target.result;
+                var createKeyStore = new Promise(function(resolveKeyStore, rejectKeyStore) {
+                    if (database.objectStoreNames.contains("{{webcrypto.keyStoreName}}")) {
+                        resolveKeyStore();
+                        return;
+                    }
+                    var keyTransaction = database.createObjectStore(
+                        "{{webcrypto.keyStoreName}}",
+                        {autoIncrement: false}
+                    ).transaction;
+                    keyTransaction.oncomplete = resolveKeyStore;
+                    keyTransaction.onerror = keyTransaction.onabort = rejectKeyStore;
+                });
+                var createMetaStore = new Promise(function(resolveMetaStore, rejectMetaStore) {
+                    if (database.objectStoreNames.contains("{{webcrypto.metaStoreName}}")) {
+                        resolveMetaStore();
+                        return;
+                    }
+                    var metaTransaction = database.createObjectStore(
+                        "{{webcrypto.metaStoreName}}",
+                        {autoIncrement: false}
+                    ).transaction;
+                    metaTransaction.oncomplete = resolveMetaStore
+                    metaTransaction.onerror = metaTransaction.onabort = rejectMetaStore;
+                });
+                Promise.all([createKeyStore, createMetaStore])
+                .then(function() {resolve(self);})
+                .catch(reject);
+            };
+            openPromise.onerror = function(event) {reject(event.error)};
+            openPromise.onblocked = function() {
+                reject(new Error("{{webcrypto.databaseName}} is already open."));
+            };
         });
     };
 

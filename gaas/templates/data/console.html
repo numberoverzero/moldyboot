@@ -45,7 +45,6 @@
     Client.loadActiveUser()
     .then(function(client) {return client.getKey();})
     .then(function(response) {
-        console.log(response);
         if (response.ok) {
             el("keyId").textContent = response.body.key_id;
             el("fingerprint").textContent = response.body.fingerprint;
