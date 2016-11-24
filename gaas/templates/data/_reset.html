@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>...</title>
+</head>
+<body>
+<script type="application/javascript">
+    "use strict";
+    var req = indexedDB.deleteDatabase("{{webcrypto.databaseName}}")
+    req.onerror = req.onsuccess = req.onblocked = req.onupgradeneeded = console.log;
+</script>
+</body>
+</html>
