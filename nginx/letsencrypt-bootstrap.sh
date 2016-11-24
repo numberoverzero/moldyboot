@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-DOMAIN=api.moldyboot.com
+# TODO support list of domains
+# TODO this should include api.moldyboot.com and console.moldyboot.com
+DOMAIN=moldyboot.com
 
 # Install acme.sh
 curl https://get.acme.sh | sh

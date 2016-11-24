@@ -1,10 +1,10 @@
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name api.moldyboot.com;
+    server_name console.moldyboot.com;
 
-    access_log /var/log/nginx/api/access.log;
-    error_log  /var/log/nginx/api/error.log;
+    access_log /var/log/nginx/console/access.log;
+    error_log  /var/log/nginx/console/error.log;
 
     # certs sent to the client in SERVER HELLO are concatenated in ssl_certificate
     ssl_certificate /etc/nginx/certs/moldyboot.com/fullchain.pem;
@@ -31,7 +31,7 @@ server {
 
     location / {
         include uwsgi_params;
-        uwsgi_pass unix:/services/api/api.sock;
+        uwsgi_pass unix:/services/console/console.sock;
     }
 
 }
