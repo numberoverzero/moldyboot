@@ -120,14 +120,22 @@ var gaasKeyStore = (function() {
                 resolve(self);
             } else {
                 var openPromise = indexedDB.open("{{webcrypto.databaseName}}", "{{webcrypto.databaseVersion}}");
-                openPromise.onsuccess = openPromise.onupgradeneeded = function (event) {
+                openPromise.onsuccess = function(event) {
                     database = event.target.result;
-                    if (!database.objectStoreNames.contains("{{webcrypto.objectStoreName}}")) {
-                        database.createObjectStore("{{webcrypto.objectStoreName}}", {autoIncrement: false});
-                    }
                     resolve(self);
                 };
-                openPromise.onfailure = function(event) {reject(event.error)};
+                openPromise.onupgradeneeded = function (event) {
+                    database = event.target.result;
+                    if (!database.objectStoreNames.contains("{{webcrypto.objectStoreName}}")) {
+                        var objectStore = database.createObjectStore("{{webcrypto.objectStoreName}}", {autoIncrement: false});
+                        objectStore.transaction.oncomplete = function(event) {
+                            resolve(self);
+                        };
+                    } else {
+                        resolve(self);
+                    }
+                };
+                openPromise.onerror = function(event) {reject(event.error)};
                 openPromise.onblocked = function() {
                     reject(new Error("{{webcrypto.databaseName}} is already open."));
                 };
@@ -211,7 +219,6 @@ var gaasKeyStore = (function() {
             .catch(reject);
         });
     };
-
     return self;
 }());
 
