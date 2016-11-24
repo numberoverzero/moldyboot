@@ -2,6 +2,10 @@
 # source /services/console/.venv/bin/activate
 # pip install path/to/gaas/project
 
+# TODO | this whole folder can be simplified down to baking
+# TODO | the templates and copying them into a static folder.
+# TODO | can still use bin/serve-console for testing
+
 import falcon
 
 from gaas.resources.console import FileRenderer
