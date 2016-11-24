@@ -263,5 +263,7 @@ var api = (function() {
         });
     };
 
+    self.call = function(method, path, )
+
     return self;
 }());

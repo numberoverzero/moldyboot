@@ -22,7 +22,7 @@ api = application = falcon.API()
 api.add_route("/login", renderer.static("login.html"))
 api.add_route("/console", renderer.static("console.html"))
 api.add_route("/debug", renderer.static("debug.html"))
-api.add_route("/scripts/{filename}", renderer.dynamic("^.+\.js$"))
+api.add_route("/js/{filename}", renderer.dynamic("^.+\.js$"))
 api.add_route("/css/{filename}", renderer.dynamic("^.+\.css$"))
 
 httpd = simple_server.make_server(console_endpoint.hostname, console_endpoint.port, api)
