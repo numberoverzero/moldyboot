@@ -32,9 +32,11 @@ def build(ctx):
 
 
 @task(pre=[build])
-def deploy(ctx, nginx=True, api=True, console=True):
+def deploy(ctx, nginx=True, ops=True, api=True, console=True):
     if nginx:
         deploy_nginx()
+    if ops:
+        deploy_ops()
     if api:
         deploy_api()
     if console:
@@ -50,6 +52,25 @@ def deploy_nginx():
         ("nginx/nginx.conf", "/etc/nginx/nginx.conf"),
         ("nginx/certs/origin-pull.pem", "/etc/nginx/certs/cloudflare/origin-pull.pem"),
         ("nginx/certs/x3-cross-signed.pem", "/etc/nginx/certs/letsencrypt/x3-cross-signed.pem")
+    )
+
+
+def deploy_ops():
+    print("=" * 80)
+    print("Deploying Ops Tools")
+    print("-" * 80)
+    dst = "/ops/"
+    with credentials_file(PROFILE_NAME) as file:
+        copy_files(
+            (file.name, dst + ".credentials/aws"),
+            ("nginx/ops/mb", dst + "mb"),
+            ("dist/" + WHL_NAME, dst + WHL_NAME),
+            ("requirements.txt", dst + "requirements.txt")
+        )
+    in_venv = "source /.venvs/ops/bin/activate && "
+    remote_commands(
+        in_venv + "pip install -r/ops/requirements.txt",
+        in_venv + "pip install --upgrade " + dst + WHL_NAME,
     )
 
 
@@ -70,7 +91,7 @@ def deploy_api():
             ("nginx/api/api.moldyboot.com", dst + "api.moldyboot.com")
         )
 
-    in_venv = "source /services/api/.venv/bin/activate && "
+    in_venv = "source /.venvs/api/bin/activate && "
     remote_commands(
         in_venv + "pip install -r/services/api/requirements.txt",
         in_venv + "pip install --upgrade " + dst + WHL_NAME,
@@ -93,7 +114,7 @@ def deploy_console():
         ("nginx/console/console.moldyboot.com", dst + "console.moldyboot.com")
     )
 
-    in_venv = "source /services/console/.venv/bin/activate && "
+    in_venv = "source /.venvs/console/bin/activate && "
     remote_commands(
         in_venv + "pip install -r/services/console/requirements.txt",
         in_venv + "pip install --upgrade " + dst + WHL_NAME,

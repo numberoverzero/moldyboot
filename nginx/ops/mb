@@ -1,23 +1,38 @@
 #!/usr/bin/env python
-import click
 import json
 import time
 
-from config import api_endpoint, async_tasks, user_manager
+import boto3
+import bloop
+import click
+import redis
+import rq
+
+from gaas.controllers import UserManager
+from gaas.models import BaseModel
+from gaas.tasks import AsyncTasks
 from gaas.controllers import AlreadyExists, NotFound, NotSaved
 from gaas.security import passwords
 
 TIMED_OUT = object()
+ROOT = "/ops"
 
+redis_port = 6379
 
-def url_for(resource: str) -> str:
-    assert resource.startswith("/")
-    return api_endpoint.geturl() + resource
+redis_connection = redis.StrictRedis(port=redis_port)
+queue = rq.Queue(connection=redis_connection)
 
+with open(ROOT + "/.credentials/aws") as f:
+    credentials = json.load(f)
+session = boto3.session.Session(**credentials)
+engine = bloop.Engine(
+    dynamodb=session.client("dynamodb"),
+    dynamodbstreams=session.client("dynamodbstreams")
+)
+engine.bind(BaseModel)
 
-def abort_if_false(ctx, param, value):
-    if not value:
-        ctx.abort()
+user_manager = UserManager(engine)
+async_tasks = AsyncTasks(queue)
 
 
 def busy_poll(job, timeout=5):
