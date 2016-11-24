@@ -18,9 +18,10 @@ context = {
         "console": ""
     },
     "webcrypto": {
-        "databaseName": "GAASDatabase",
+        "databaseName": "MoldyDatabase",
         "databaseVersion": 1,
-        "objectStoreName": "GAASKeyStore"
+        "keyStoreName": "MoldyKeyStore",
+        "metaStoreName": "MoldyMetaStore"
     }
 }
 renderer = FileRenderer(context)
