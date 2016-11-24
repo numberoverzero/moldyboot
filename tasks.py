@@ -32,9 +32,28 @@ def build(ctx):
 
 
 @task(pre=[build])
-def deploy(ctx):
-    dst = "/services/api/"
+def deploy(ctx, nginx=True, api=True, console=True):
+    if nginx:
+        deploy_nginx()
+    if api:
+        deploy_api()
+    if console:
+        deploy_console()
+    remote_commands("sudo service nginx restart")
 
+
+def deploy_nginx():
+    print("=" * 80)
+    print("Deploying Nginx")
+    print("-" * 80)
+    copy_file("nginx/nginx-https-only", "/services/nginx-https-only")
+
+
+def deploy_api():
+    dst = "/services/api/"
+    print("=" * 80)
+    print("Deploying API")
+    print("-" * 80)
     print("Copying gaas.whl, server requirements, and credentials to host")
     copy_file("dist/" + WHL_NAME, dst + WHL_NAME)
     copy_file("nginx/api/requirements.txt", dst + "requirements.txt")
@@ -54,6 +73,31 @@ def deploy(ctx):
         in_venv + "pip install -r/services/api/requirements.txt",
         in_venv + "pip install --upgrade " + dst + WHL_NAME,
         "sudo systemctl restart api",
+    )
+
+
+def deploy_console():
+    dst = "/services/console/"
+    print("=" * 80)
+    print("Deploying Console")
+    print("-" * 80)
+    print("Copying gaas.whl, server requirements to host")
+    copy_file("dist/" + WHL_NAME, dst + WHL_NAME)
+    copy_file("nginx/console/requirements.txt", dst + "requirements.txt")
+
+    print("Copying server artifacts to host")
+    copy_file("nginx/console/serve.sh", dst + "serve.sh")
+    copy_file("nginx/console/server.py", dst + "server.py")
+    copy_file("nginx/console/uwsgi.ini", dst + "uwsgi.ini")
+    copy_file("nginx/console/console.moldyboot.com", dst + "console.moldyboot.com")
+    print("If the systemd console.service has changed, you will need to manually copy it over.")
+
+    in_venv = "source /services/console/.venv/bin/activate && "
+
+    remote_commands(
+        in_venv + "pip install -r/services/console/requirements.txt",
+        in_venv + "pip install --upgrade " + dst + WHL_NAME,
+        "sudo systemctl restart console",
     )
 
 
