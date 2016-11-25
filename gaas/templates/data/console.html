@@ -22,15 +22,15 @@
     </main>
 </div>
 
-<!-- superagent 3.0.0 -->
+<!-- window.superagent -->
 <script src="{{endpoints.console}}/js/superagent.min.js" type="application/javascript"></script>
-<!-- gaasKeys, gaasKeyStore, api -->
+<!-- window.errors, window.keys, window.keys.storage, window.request, window.Client -->
 <script src="{{endpoints.console}}/js/gaas.js" type="text/javascript"></script>
 <script type="application/javascript">
     "use strict";
     var el = document.getElementById.bind(document);
 
-    Client.loadActiveUser()
+    Client.forActiveUser()
     .then(function(client) {return client.getKey();})
     .then(function(response) {
         if (response.ok) {
@@ -43,7 +43,14 @@
             console.log(response);
         }
     })
-    .catch(console.log);
+    .catch(function(error) {
+        if (window.errors.is(error, "NoActiveUser")) {
+            alert("Not logged in.  Redirecting to the login page.");
+            window.location.href = "{{endpoints.console}}/login";
+        } else {
+            console.log(error);
+        }
+    });
 </script>
 </body>
 </html>

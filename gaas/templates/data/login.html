@@ -24,9 +24,9 @@
     </main>
 </div>
 
-<!-- superagent 3.0.0 -->
+<!-- window.superagent -->
 <script src="{{endpoints.console}}/js/superagent.min.js" type="application/javascript"></script>
-<!-- gaasKeys, gaasKeyStore, api -->
+<!-- window.errors, window.keys, window.keys.storage, window.request, window.Client -->
 <script src="{{endpoints.console}}/js/gaas.js" type="text/javascript"></script>
 <!-- login form -->
 <script type="application/javascript">
@@ -47,8 +47,7 @@
             password = $password.value;
 
         var FAIL = console.log;
-        api.login(username, password)
-        .then(function() {return gaasKeyStore.setActiveUser(username);})
+        (new Client(username)).login(password)
         .then(function () {
             $loginButton.removeAttribute("disabled");
             $loginStatus.style.display = "none";
