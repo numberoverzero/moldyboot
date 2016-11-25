@@ -74,13 +74,37 @@ function sha256(str) {
 }
 
 
+window.errors = (function() {
+    var self = {};
+    var _cache = {};
+    Object.defineProperty(self, "cached", {get: function() {return Object.keys(_cache);}});
+
+    self.newCls = function(name) {
+        if (name in _cache) {return _cache[name];}
+        var ErrorClass = _cache[name] = function() {
+            var tmp = Error.apply(this, arguments);
+            tmp.name = this.name = name;
+            this.message = tmp.message;
+            Object.defineProperty(this, "stack", {get: function() {return tmp.stack;}});
+            return this;
+        };
+        var Intermediate = function () {};
+        Intermediate.prototype = Error.prototype;
+        ErrorClass.prototype = new Intermediate();
+        return ErrorClass;
+    };
+    self.t = function(name, message) {return new (self.newCls(name))(message);};
+    return self;
+}());
+
+
 window.gaasKeys = (function() {
     var self = {};
 
     function calculateMaxSaltLength (keyLen, hash) {
         var digestLen;
         if (hash === "SHA-256") digestLen = 32;
-        else throw new Error("Unknown hash function '" + hash + "'");
+        else throw errors.t("InvalidHash", "Unknown hash function '" + hash + "'");
         // RFC 3447
         var emLen = Math.ceil((keyLen-1) / 8);
         return emLen - digestLen - 2;
@@ -188,7 +212,7 @@ window.gaasKeyStore = (function() {
             };
             openPromise.onerror = function(event) {reject(event.error)};
             openPromise.onblocked = function() {
-                reject(new Error("{{webcrypto.databaseName}} is already open."));
+                reject(errors.t("DatabaseOpen", "{{webcrypto.databaseName}} is already open."));
             };
         });
     };
@@ -216,7 +240,7 @@ window.gaasKeyStore = (function() {
                     if (userBlob) {
                         resolve(userBlob.username);
                     } else {
-                        reject(new Error("NoActiveUser"));
+                        reject(errors.t("NoActiveUser", "There is no active user."));
                     }
                 };
                 request.onerror = reject;
@@ -238,7 +262,7 @@ window.gaasKeyStore = (function() {
         });
     };
 
-    self.load = function (username, regenerate, keyLen, hash) {
+    self.loadKey = function (username, regenerate, keyLen, hash) {
         var regenerate = (typeof regenerate === 'undefined') ? false : regenerate;
         return new Promise(function (resolve, reject) {
             self.open()
@@ -258,7 +282,7 @@ window.gaasKeyStore = (function() {
                                 publicKey: keys.publicKey,
                                 saltLen: keys.saltLen
                             };
-                            self.save(keyBlob, username)
+                            self.saveKey(keyBlob, username)
                             .then(function() {
                                 resolve(keyBlob);
                             })
@@ -266,7 +290,7 @@ window.gaasKeyStore = (function() {
                         })
                         .catch(reject);
                     } else {
-                        reject(new Error("NotFoundError", username));
+                        reject(errors.t("NoKey", "No key found for user " + username));
                     }
                 };
                 request.onerror = reject;
@@ -275,7 +299,7 @@ window.gaasKeyStore = (function() {
         });
     };
 
-    self.save = function (keyBlob, username) {
+    self.saveKey = function (keyBlob, username) {
         return new Promise(function (resolve, reject) {
             self.open()
             .then(function() {
@@ -288,7 +312,7 @@ window.gaasKeyStore = (function() {
         });
     };
 
-    self.delete = function (username) {
+    self.deleteKey = function (username) {
         return new Promise(function (resolve, reject) {
             self.open()
             .then(function() {
@@ -300,6 +324,7 @@ window.gaasKeyStore = (function() {
             .catch(reject);
         });
     };
+
     return self;
 }());
 
@@ -313,7 +338,7 @@ window.api = (function() {
      */
     self.login = function(username, password) {
         return new Promise(function (resolve, reject) {
-            gaasKeyStore.load(username, true)
+            gaasKeyStore.loadKey(username, true)
             .then(function (keyBlob) {
                 gaasKeys.export(keyBlob)
                 .then(function (jwk) {
@@ -337,7 +362,7 @@ window.api = (function() {
                     keyBlob.until = response.body.until;
                     keyBlob.id = response.body.key_id;
 
-                    gaasKeyStore.save(keyBlob, username)
+                    gaasKeyStore.saveKey(keyBlob, username)
                     .then(function() {gaasKeyStore.setActiveUser(username);})
                     .then(function() {resolve(response);})
                     .catch(reject);
@@ -419,7 +444,7 @@ window.Client = function(username) {
     self.username = username;
 
     // Promise to hang execution off of.
-    self.withKey = gaasKeyStore.load(self.username, false);
+    self.withKey = gaasKeyStore.loadKey(self.username, false);
 
     self.getKey = function() {
         return new Promise(function(resolve, reject) {
