@@ -171,13 +171,6 @@ window.keys = (function() {
         });
     };
 
-    // Start an async generate on page load in case there's no active user, or the active key has expired
-    keysSelf.unique = keysSelf.generate()
-    .then(function(keyBlob) {
-        console.log("pre-generated unique key");
-        return keyBlob;
-    });
-
     keysSelf.storage = (function() {
         var storageSelf = {};
 
@@ -429,7 +422,7 @@ window.Client = function(username) {
 
     self.login = function(password) {
         return new Promise(function (resolve, reject) {
-            window.keys.unique
+            self.withKey()
             .then(function (keyBlob) {
                 window.keys.export(keyBlob)
                 .then(function (jwk) {
