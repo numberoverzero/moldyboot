@@ -82,9 +82,16 @@ def deploy_api():
     dst = "/services/api/"
     with credentials_file(PROFILE_NAME) as file:
         copy_files(
+            # shared files
             (file.name, dst + ".credentials/aws"),
             ("dist/" + WHL_NAME, dst + WHL_NAME),
             ("nginx/api/requirements.txt", dst + "requirements.txt"),
+
+            # rq worker
+            ("nginx/api/worker.sh", dst + "worker.sh"),
+            ("nginx/api/rq-worker.py", dst + "rq-worker.py"),
+
+            # https
             ("nginx/api/serve.sh", dst + "serve.sh"),
             ("nginx/api/server.py", dst + "server.py"),
             ("nginx/api/uwsgi.ini", dst + "uwsgi.ini"),
@@ -96,6 +103,7 @@ def deploy_api():
         in_venv + "pip install -r/services/api/requirements.txt",
         in_venv + "pip install --upgrade " + dst + WHL_NAME,
         "sudo systemctl restart api",
+        "sudo systemctl restart rq-worker",
     )
 
 

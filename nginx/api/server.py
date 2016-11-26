@@ -31,7 +31,7 @@ from moldyboot.tasks import AsyncTasks
 
 ROOT = "/services/api"
 
-redis_connection = redis.StrictRedis(port=6379)
+redis_connection = redis.StrictRedis(host="127.0.0.1", port=6379)
 queue = rq.Queue(connection=redis_connection)
 
 with open(ROOT + "/.credentials/aws") as f:

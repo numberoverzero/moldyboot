@@ -1,0 +1,10 @@
+[Unit]
+Description=worker for the api service's redis queue
+After=api.service redis-server.service
+Wants=api.service redis-server.service
+
+[Service]
+ExecStart=/services/api/worker.sh
+
+[Install]
+WantedBy=multi-user.target

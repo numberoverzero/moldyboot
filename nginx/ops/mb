@@ -17,9 +17,10 @@ from moldyboot.security import passwords
 TIMED_OUT = object()
 ROOT = "/ops"
 
+redis_host = "127.0.0.1"
 redis_port = 6379
 
-redis_connection = redis.StrictRedis(port=redis_port)
+redis_connection = redis.StrictRedis(host=redis_host, port=redis_port)
 queue = rq.Queue(connection=redis_connection)
 
 with open(ROOT + "/.credentials/aws") as f:
