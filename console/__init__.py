@@ -89,18 +89,23 @@ def url_file(name, file_type):
 
 # ==================================================================================================== context helpers
 
-# context = {
-#     "endpoints": {
-#         "api": "https://api.moldyboot.com",
-#         # https://console.moldyboot.com
-#         # since these are rendered on console.moldyboot, they can all be relative
-#         "console": ""
-#     },
-#     "webcrypto": {
-#         "databaseName": "MoldyDatabase",
-#         "databaseVersion": 1,
-#         "keyStoreName": "MoldyKeyStore",
-#         "metaStoreName": "MoldyMetaStore"
-#     }
-# }
-# render_to_directory("output-test", context, False, True)
+# ======================================================================================================= prod context
+
+
+production_context = {
+    "endpoints": {
+        "api": "https://api.moldyboot.com",
+        # https://console.moldyboot.com
+        # since these are rendered on console.moldyboot, they can all be relative
+        "console": ""
+    },
+    "webcrypto": {
+        "databaseName": "MoldyDatabase",
+        "databaseVersion": 1,
+        "keyStoreName": "MoldyKeyStore",
+        "metaStoreName": "MoldyMetaStore"
+    }
+}
+
+
+# ======================================================================================================= prod context
