@@ -1,7 +1,7 @@
 import pytest
 import textwrap
 
-from gaas import templates
+from moldyboot import templates
 
 
 @pytest.mark.parametrize("template_name", ["verify-email.html", "verify-email.txt"])
@@ -23,6 +23,6 @@ def test_render_verify_text():
 
     Thank you,
 
-    gaas
+    Moldyboot Staff
     """)[1:]  # Strip first \n since we need all of the lines to have the same leading indentation
     assert output == expected

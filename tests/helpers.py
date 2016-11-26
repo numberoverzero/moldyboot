@@ -11,8 +11,8 @@ import uritools
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 
-from gaas.middleware import BodyWrapper
-from gaas.security import signatures
+from moldyboot.middleware import BodyWrapper
+from moldyboot.security import signatures
 
 
 def build_env(

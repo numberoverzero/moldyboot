@@ -37,7 +37,7 @@ class PublicKeyType(Binary):
 class Key(BaseModel):
     class Meta:
         # TODO should be loaded from config
-        table_name = "gaas-keys"
+        table_name = "mbKeys"
         write_units = 1
         read_units = 1
 

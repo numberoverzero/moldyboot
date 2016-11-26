@@ -3,10 +3,10 @@ import rq
 import urllib.parse
 import uuid
 
-from gaas import templates
-from gaas.controllers import InvalidParameter, NotFound, NotSaved
-from gaas.models import Key, User, UserName
-from gaas.tasks import AsyncTasks, RedisContext, Result, _delete_user, _send_verification
+from moldyboot import templates
+from moldyboot.controllers import InvalidParameter, NotFound, NotSaved
+from moldyboot.models import Key, User, UserName
+from moldyboot.tasks import AsyncTasks, RedisContext, Result, _delete_user, _send_verification
 
 
 from unittest.mock import Mock
@@ -164,7 +164,7 @@ def test_email_success(ses, mock_user_manager):
         "verify-email.html",
         {"username": username, "verification_url": verification_url})
     ses.send_email.assert_called_once_with(**{
-        "Source": "gaas-support@moldyboot.com",
+        "Source": "support@moldyboot.com",
         "Destination": {"ToAddresses": [email]},
         "Message": {
             "Subject": {"Data": "Please verify your email", "Charset": "UTF-8"},
@@ -173,8 +173,8 @@ def test_email_success(ses, mock_user_manager):
                 "Html": {"Data": expected_html, "Charset": "UTF-8"}
             }
         },
-        "ReplyToAddresses": ["gaas-support@moldyboot.com"],
-        "ReturnPath": "gaas-support+bounce@moldyboot.com"
+        "ReplyToAddresses": ["support@moldyboot.com"],
+        "ReturnPath": "support+bounce@moldyboot.com"
     })
 
 

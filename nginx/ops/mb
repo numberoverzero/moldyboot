@@ -8,11 +8,11 @@ import click
 import redis
 import rq
 
-from gaas.controllers import UserManager
-from gaas.models import BaseModel
-from gaas.tasks import AsyncTasks
-from gaas.controllers import AlreadyExists, NotFound, NotSaved
-from gaas.security import passwords
+from moldyboot.controllers import UserManager
+from moldyboot.models import BaseModel
+from moldyboot.tasks import AsyncTasks
+from moldyboot.controllers import AlreadyExists, NotFound, NotSaved
+from moldyboot.security import passwords
 
 TIMED_OUT = object()
 ROOT = "/ops"

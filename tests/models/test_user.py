@@ -1,6 +1,6 @@
 import uuid
 
-from gaas.models.user import User
+from moldyboot.models.user import User
 
 
 def test_is_verified():

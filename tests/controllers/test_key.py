@@ -5,8 +5,8 @@ import uuid
 
 from roughly import has_type, near
 
-from gaas.controllers import InvalidParameter, NotFound, NotSaved
-from gaas.models import Key
+from moldyboot.controllers import InvalidParameter, NotFound, NotSaved
+from moldyboot.models import Key
 
 from tests.helpers import as_der
 

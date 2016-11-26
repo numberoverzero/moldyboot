@@ -1,4 +1,4 @@
-from gaas.security.jwk import (
+from moldyboot.security.jwk import (
     dump_private_key,
     dump_public_key,
     load_private_key,

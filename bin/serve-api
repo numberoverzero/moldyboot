@@ -4,8 +4,8 @@ import falcon_cors
 
 from wsgiref import simple_server
 from config import api_endpoint, async_tasks, console_endpoint, key_manager, user_manager
-from gaas.middleware import Authentication, TranslateJSON
-from gaas.resources.api import Keys, Signup, Verifications
+from moldyboot.middleware import Authentication, TranslateJSON
+from moldyboot.resources.api import Keys, Signup, Verifications
 
 cors = falcon_cors.CORS(
     allow_origins_list=[console_endpoint.geturl()],

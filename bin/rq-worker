@@ -4,7 +4,7 @@ import logging
 import rq
 
 from config import api_endpoint, session, key_manager, user_manager, queue
-from gaas.tasks import RedisContext
+from moldyboot.tasks import RedisContext
 
 logger = logging.getLogger(__name__)
 

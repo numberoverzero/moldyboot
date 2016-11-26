@@ -4,9 +4,9 @@ import uuid
 
 from tests.helpers import request, response
 
-from gaas.models import User
-from gaas.controllers import InvalidParameter, NotFound, NotSaved
-from gaas.resources.api.verifications import Verifications
+from moldyboot.models import User
+from moldyboot.controllers import InvalidParameter, NotFound, NotSaved
+from moldyboot.resources.api.verifications import Verifications
 
 
 def test_on_get_invalid_user_id(mock_user_manager):

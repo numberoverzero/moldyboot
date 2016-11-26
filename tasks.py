@@ -6,7 +6,7 @@ import configparser
 import os
 import sys
 
-import gaas
+import moldyboot
 
 import paramiko
 from invoke import task
@@ -16,7 +16,7 @@ API_HOST_IP = "138.197.232.23"
 PROFILE_NAME = "api.moldyboot.com@prod.005"
 
 HERE = os.path.abspath(os.path.dirname(__file__))
-WHL_NAME = "gaas-{v}-py3-none-any.whl".format(v=gaas.__version__)
+WHL_NAME = "moldyboot-{v}-py3-none-any.whl".format(v=moldyboot.__version__)
 
 
 @task

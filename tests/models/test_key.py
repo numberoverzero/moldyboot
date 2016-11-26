@@ -2,7 +2,7 @@ import arrow
 import base64
 import uuid
 
-from gaas.models.key import Key, PublicKeyType
+from moldyboot.models.key import Key, PublicKeyType
 from tests.helpers import as_der
 
 

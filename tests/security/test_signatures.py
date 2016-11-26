@@ -8,7 +8,7 @@ import re
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 
-from gaas.security.signatures import BadSignature, sign, verify
+from moldyboot.security.signatures import BadSignature, sign, verify
 
 PATH = "/some/path/?query=string&another=value"
 SIGNATURE_PATTERN = re.compile(

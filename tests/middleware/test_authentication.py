@@ -5,7 +5,7 @@ import falcon.testing
 import pytest
 import uuid
 
-from gaas.models import UserName
+from moldyboot.models import UserName
 
 from ..helpers import request, response, signed_request
 
@@ -13,12 +13,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from unittest.mock import Mock
 
-from gaas.middleware.authentication import Authentication, authenticate_password, authenticate_signature
-from gaas.models import Key, User
-from gaas.controllers import InvalidParameter, NotFound
-from gaas.security import passwords
-from gaas.security.passwords import hash
-from gaas.security.signatures import sign
+from moldyboot.middleware.authentication import Authentication, authenticate_password, authenticate_signature
+from moldyboot.models import Key, User
+from moldyboot.controllers import InvalidParameter, NotFound
+from moldyboot.security import passwords
+from moldyboot.security.passwords import hash
+from moldyboot.security.signatures import sign
 
 SIGNATURE_MISMATCH_MESSAGE = (
     'Authorization header did not match required pattern '

@@ -1,6 +1,6 @@
 # virtualenv -p python3.5 /services/console/.venv
 # source /services/console/.venv/bin/activate
-# pip install path/to/gaas/project
+# pip install path/to/moldyboot/project
 
 # TODO | this whole folder can be simplified down to baking
 # TODO | the templates and copying them into a static folder.
@@ -8,7 +8,7 @@
 
 import falcon
 
-from gaas.resources.console import FileRenderer
+from moldyboot.resources.console import FileRenderer
 
 context = {
     "endpoints": {

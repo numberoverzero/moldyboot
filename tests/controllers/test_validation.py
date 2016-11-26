@@ -4,8 +4,8 @@ import uuid
 import bcrypt
 import pytest
 
-from gaas.controllers import InvalidParameter, validate
-from gaas.security.jwk import i2b64
+from moldyboot.controllers import InvalidParameter, validate
+from moldyboot.security.jwk import i2b64
 
 from cryptography.hazmat.primitives import serialization
 

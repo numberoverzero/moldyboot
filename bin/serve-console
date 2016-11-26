@@ -3,7 +3,7 @@ import falcon
 
 from wsgiref import simple_server
 from config import api_endpoint, console_endpoint
-from gaas.resources.console import FileRenderer
+from moldyboot.resources.console import FileRenderer
 
 context = {
     "endpoints": {

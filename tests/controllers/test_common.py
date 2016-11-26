@@ -2,7 +2,7 @@ import pytest
 
 from bloop import Column, Integer, ConstraintViolation, GlobalSecondaryIndex, BaseModel
 
-from gaas.controllers import NotSaved, persist_unique, if_not_exist
+from moldyboot.controllers import NotSaved, persist_unique, if_not_exist
 
 
 @pytest.fixture

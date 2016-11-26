@@ -6,7 +6,7 @@ from .common import BaseModel
 class UserName(BaseModel):
     class Meta:
         # TODO should be loaded from config
-        table_name = "gaas-user-names"
+        table_name = "mbUserNames"
         write_units = 1
         read_units = 1
     username = Column(String, hash_key=True, name="n")
@@ -20,7 +20,7 @@ class UserName(BaseModel):
 class User(BaseModel):
     class Meta:
         # TODO should be loaded from config
-        table_name = "gaas-users"
+        table_name = "mbUsers"
         write_units = 1
         read_units = 1
     user_id = Column(UUID, hash_key=True, name="u")

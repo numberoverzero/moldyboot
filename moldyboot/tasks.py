@@ -96,8 +96,8 @@ def _send_verification(username: str):
         return Result.empty
 
     # TODO use config
-    support = "gaas-support@moldyboot.com"
-    support_bounce = "gaas-support+bounce@moldyboot.com"
+    support = "support@moldyboot.com"
+    support_bounce = "support+bounce@moldyboot.com"
     verification_url = "{}/verify/{}/{}".format(ctx.endpoint.geturl(), user.user_id, user.verification_code)
     ctx.session.client("ses").send_email(
         Source=support,

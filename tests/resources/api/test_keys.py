@@ -7,9 +7,9 @@ from cryptography.hazmat.primitives import serialization
 
 from tests.helpers import request, response
 
-from gaas.models import Key, User
-from gaas.controllers import InvalidParameter, NotSaved
-from gaas.resources.api.keys import Keys
+from moldyboot.models import Key, User
+from moldyboot.controllers import InvalidParameter, NotSaved
+from moldyboot.resources.api.keys import Keys
 
 
 def basic_auth_request(user, **kwargs):

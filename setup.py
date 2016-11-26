@@ -4,7 +4,7 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 
 
 def get_version():
-    with open(os.path.join(HERE, "gaas/__init__.py")) as f:
+    with open(os.path.join(HERE, "moldyboot/__init__.py")) as f:
         for line in f:
             if line.startswith("__version__"):
                 return eval(line.split("=")[-1])
@@ -30,11 +30,11 @@ requirements = [
 
 if __name__ == "__main__":
     setup(
-        name="gaas",
+        name="moldyboot",
         version=get_version(),
         author="Joe Cross",
         author_email="joe.mcross@gmail.com",
-        url="https://github.com/numberoverzero/gaas",
+        url="https://github.com/numberoverzero/moldyboot",
         include_package_data=True,
         packages=find_packages(exclude=("tests", "docs", "examples")),
         install_requires=requirements,

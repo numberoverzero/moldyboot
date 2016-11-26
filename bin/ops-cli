@@ -4,8 +4,8 @@ import json
 import time
 
 from config import api_endpoint, async_tasks, user_manager
-from gaas.controllers import AlreadyExists, NotFound, NotSaved
-from gaas.security import passwords
+from moldyboot.controllers import AlreadyExists, NotFound, NotSaved
+from moldyboot.security import passwords
 
 TIMED_OUT = object()
 

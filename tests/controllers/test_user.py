@@ -6,8 +6,8 @@ import bloop
 import pytest
 from roughly import has_type, near
 
-from gaas.controllers import AlreadyExists, InvalidParameter, NotFound, NotSaved
-from gaas.models import User, UserName
+from moldyboot.controllers import AlreadyExists, InvalidParameter, NotFound, NotSaved
+from moldyboot.models import User, UserName
 
 valid_username = "abc"
 valid_email = "a@b"

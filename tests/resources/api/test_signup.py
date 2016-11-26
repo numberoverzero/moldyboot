@@ -2,10 +2,10 @@ import falcon
 import pytest
 import uuid
 
-from gaas.controllers import AlreadyExists
-from gaas.models import User
-from gaas.resources.api.signup import Signup
-from gaas.security import passwords
+from moldyboot.controllers import AlreadyExists
+from moldyboot.models import User
+from moldyboot.resources.api.signup import Signup
+from moldyboot.security import passwords
 
 
 from tests.helpers import request, response

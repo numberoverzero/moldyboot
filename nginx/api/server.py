@@ -1,6 +1,6 @@
 # 0. Install redis
 # 1. Load aws security credentials
-# 2. Create venv and pip install gaas
+# 2. Create venv and pip install moldyboot
 #
 # apt-get install redis-server
 #
@@ -13,7 +13,7 @@
 #
 # virtualenv -p python3.5 /services/api/.venv
 # source /services/api/.venv/bin/activate
-# pip install path/to/gaas/project
+# pip install path/to/moldyboot/project
 
 import bloop
 import boto3
@@ -23,11 +23,11 @@ import json
 import redis
 import rq
 
-from gaas.middleware import Authentication, TranslateJSON
-from gaas.controllers import KeyManager, UserManager
-from gaas.models import BaseModel
-from gaas.resources.api import Keys, Signup, Verifications
-from gaas.tasks import AsyncTasks
+from moldyboot.middleware import Authentication, TranslateJSON
+from moldyboot.controllers import KeyManager, UserManager
+from moldyboot.models import BaseModel
+from moldyboot.resources.api import Keys, Signup, Verifications
+from moldyboot.tasks import AsyncTasks
 
 ROOT = "/services/api"
 
