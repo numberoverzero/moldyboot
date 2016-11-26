@@ -9,6 +9,7 @@ import http.server
 import socketserver
 
 static_dir = os.path.join(parent, "dist", "console")
+os.makedirs(static_dir, exist_ok=True)
 os.chdir(static_dir)
 console.render_to_directory(
     dst_root=static_dir,
