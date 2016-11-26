@@ -1,10 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>...</title>
-</head>
-<body>
+{% extends "_partial/layout.html" %}
+{% set title = "..." %}
+{% block inline_js %}
 <script type="application/javascript">
     "use strict";
     var req = indexedDB.deleteDatabase("{{webcrypto.databaseName}}");
@@ -13,5 +9,4 @@
         window.location.href = "{{endpoints.console}}/login";
     }
 </script>
-</body>
-</html>
+{% endblock %}

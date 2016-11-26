@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+
+    {% for filename in css_files %}
+    <link href="{{ css_file(filename) }}" rel="stylesheet" type="text/css" />
+    {% endfor %}
+
+    {% if self.inline_css() %}
+    <style>
+        {% block inline_css %}{% endblock %}
+    </style>
+    {% endif %}
+</head>
+
+<body>
+{% block body %}{% endblock %}
+
+{% for filename in js_files %}
+<script src="{{ js_file(filename) }}" type="application/javascript"></script>
+{% endfor %}
+
+{% block inline_js %}{% endblock %}
+</body>
+
+</html>

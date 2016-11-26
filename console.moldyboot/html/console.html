@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Moldyboot Console</title>
-    <link href="{{endpoints.console}}/css/normalize.min.css" rel="stylesheet"/>
-    <link href="{{endpoints.console}}/css/milligram.min.css" rel="stylesheet"/>
-    <link href="{{endpoints.console}}/css/main.css" rel="stylesheet"/>
-</head>
+{% extends "_partial/layout.html" %}
+{% set title = "Moldyboot Console" %}
+
+{% set css_files = ["normalize.min", "milligram.min"] %}
+{% block inline_css %}{% include "_partial/main.css" %}{% endblock %}
+
+{% block body %}
 <body>
 <div class="container">
     <main class="wrapper">
@@ -21,11 +19,10 @@
         </section>
     </main>
 </div>
+{% endblock %}
 
-<!-- window.superagent -->
-<script src="{{endpoints.console}}/js/superagent.min.js" type="application/javascript"></script>
-<!-- window.errors, window.keys, window.keys.storage, window.request, window.Client -->
-<script src="{{endpoints.console}}/js/moldyboot.js" type="text/javascript"></script>
+{% set js_files = ["superagent.min", "moldyboot"] %}
+{% block inline_js %}
 <script type="application/javascript">
     "use strict";
     var el = document.getElementById.bind(document);
@@ -52,5 +49,4 @@
         }
     });
 </script>
-</body>
-</html>
+{% endblock %}
