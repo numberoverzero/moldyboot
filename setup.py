@@ -21,6 +21,7 @@ requirements = [
     "hiredis==0.2.0",
     "httpie==0.9.3",
     "humanize==0.5.1",
+    "jinja2==2.8",
     "pystache==0.5.4",
     "rq==0.6.0",
     "texas==0.5.2",

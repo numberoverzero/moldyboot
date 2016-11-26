@@ -12,6 +12,7 @@ hiredis==0.2.0
 httpie==0.9.3
 humanize==0.5.1
 invoke==0.13.0
+jinja2==2.8
 paramiko==2.0.2
 pystache==0.5.4
 pytest==2.9.2
