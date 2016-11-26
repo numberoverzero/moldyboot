@@ -60,6 +60,10 @@ def render_to_directory(dst_root, ctx=None, dry_run=True, overwrite=False):
     dst_root = pathlib.Path(dst_root)
     ctx = extend_context(ctx)
     for src, rendered in iter_rendered(ctx):
+        # Drop .html suffix, collapse html/ prefix
+        if src.name.endswith(".html"):
+            src = pathlib.Path(*src.parts[1:])  # html/foo/name.html -> foo/name.html
+            src = src.parent / src.stem  # foo/name.html -> foo/name
         dst = dst_root / src
         if not dry_run:
             ensure_path_to(dst)
@@ -89,15 +93,15 @@ def url_file(name, file_type):
 
 # ==================================================================================================== context helpers
 
-# ======================================================================================================= prod context
+# ============================================================================================================ context
 
 
-production_context = {
+context = {
     "endpoints": {
-        "api": "https://api.moldyboot.com",
+        "api": None,
         # https://console.moldyboot.com
         # since these are rendered on console.moldyboot, they can all be relative
-        "console": ""
+        "console": None
     },
     "webcrypto": {
         "databaseName": "MoldyDatabase",
@@ -107,5 +111,14 @@ production_context = {
     }
 }
 
+production_context = dict(context)
+production_context["endpoints"]["api"] = "https://api.moldyboot.com"
+production_context["endpoints"]["console"] = ""
 
-# ======================================================================================================= prod context
+
+local_context = dict(context)
+local_context["endpoints"]["api"] = "http://127.0.0.1:8010"
+local_context["endpoints"]["console"] = "http://127.0.0.1:8020"
+
+
+# ============================================================================================================ context
