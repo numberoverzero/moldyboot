@@ -1,31 +1,22 @@
 #!/usr/bin/env python
-import falcon
+import os
+import sys
+parent = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..")
+sys.path.append(parent)
 
-from wsgiref import simple_server
-from config import api_endpoint, console_endpoint
-from moldyboot.resources.console import FileRenderer
+import console
+import http.server
+import socketserver
 
-context = {
-    "endpoints": {
-        "api": api_endpoint.geturl(),
-        "console": console_endpoint.geturl()
-    },
-    "webcrypto": {
-        "databaseName": "MoldyDatabase",
-        "databaseVersion": 1,
-        "keyStoreName": "MoldyKeyStore",
-        "metaStoreName": "MoldyMetaStore"
-    }
-}
-renderer = FileRenderer(context)
-
-api = application = falcon.API()
-api.add_route("/login", renderer.static("login.html"))
-api.add_route("/console", renderer.static("console.html"))
-api.add_route("/_reset", renderer.static("_reset.html"))
-api.add_route("/js/{filename}", renderer.dynamic("^.+\.js$"))
-api.add_route("/css/{filename}", renderer.dynamic("^.+\.css$"))
-
-httpd = simple_server.make_server(console_endpoint.hostname, console_endpoint.port, api)
-print("Serving CONSOLE on {}".format(console_endpoint.port))
+static_dir = os.path.join(parent, "dist", "console")
+os.chdir(static_dir)
+console.render_to_directory(
+    dst_root=static_dir,
+    ctx=console.local_context,
+    dry_run=False, overwrite=True)
+port = 8020
+handler = http.server.SimpleHTTPRequestHandler
+handler.extensions_map[""] = "text/html"
+httpd = socketserver.TCPServer(("", port), handler)
+print("Serving CONSOLE on {}".format(port))
 httpd.serve_forever()
