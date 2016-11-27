@@ -8,12 +8,12 @@ import console
 import http.server
 import socketserver
 
-static_dir = os.path.join(parent, "dist", "console")
-os.makedirs(static_dir, exist_ok=True)
+static_dir = os.path.join(parent, "build", "console")
+console.ensure_path_to(static_dir, clean=True)
 os.chdir(static_dir)
 console.render_to_directory(
     dst_root=static_dir,
-    ctx=console.local_context,
+    ctx=console.local_context.snapshot,
     dry_run=False, overwrite=True)
 port = 8020
 handler = http.server.SimpleHTTPRequestHandler

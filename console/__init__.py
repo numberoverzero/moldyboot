@@ -1,6 +1,7 @@
 import functools
 import os
 import pathlib
+import texas
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -33,7 +34,13 @@ env = Environment(loader=loader, **jinja_options)
 # ========================================================================================================== rendering
 
 
-def ensure_path_to(dst):
+def ensure_path_to(dst, clean=False):
+    if clean:
+        try:
+            os.rmdir(dst)
+        except OSError:
+            # folder doesn't exist
+            pass
     try:
         dst.parent.mkdir(parents=True)
     except OSError:
@@ -94,12 +101,11 @@ def url_file(name, file_type):
 
 # ============================================================================================================ context
 
-
-context = {
+context = texas.Context()
+global_context = context.include("global")
+global_context.update({
     "endpoints": {
         "api": None,
-        # https://console.moldyboot.com
-        # since these are rendered on console.moldyboot, they can all be relative
         "console": None
     },
     "webcrypto": {
@@ -108,16 +114,16 @@ context = {
         "keyStoreName": "MoldyKeyStore",
         "metaStoreName": "MoldyMetaStore"
     }
-}
+})
 
-production_context = dict(context)
-production_context["endpoints"]["api"] = "https://api.moldyboot.com"
-production_context["endpoints"]["console"] = ""
+production_context = context.include("global", "production")
+production_context["endpoints.api"] = "https://api.moldyboot.com"
+production_context["endpoints.console"] = ""
 
 
-local_context = dict(context)
-local_context["endpoints"]["api"] = "http://127.0.0.1:8010"
-local_context["endpoints"]["console"] = "http://127.0.0.1:8020"
+local_context = context.include("global", "local")
+local_context["endpoints.api"] = "http://127.0.0.1:8010"
+local_context["endpoints.console"] = "http://127.0.0.1:8020"
 
 
 # ============================================================================================================ context
