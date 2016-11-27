@@ -7,12 +7,26 @@ server {
     error_log  /var/log/nginx/console/error.log;
 
     root /services/console/static;
-    # remove trailing slash
+
+    # =============
+    #  Pretty Urls
+    # =============
+
+    # remove trailing "/"
+    # -------------------
     rewrite ^/(.*)/$ /$1 permanent;
-    # remove trailing .html
+
+    # remove trailing ".html"
+    # -----------------------
     rewrite ^/(.*)\.html$ /$1 permanent;
 
+
+    # search rules
+    # ------------
+    # 0. name as given (css/normalize.min.css)
+    # 1. append .html for single pages (/login -> /login.html)
+    # 2. append /index.html for directories (/users -> /users/index.html)
     location / {
-        try_files $uri $uri.html =404 last;
+        try_files $uri $uri.html $uri/index.html =404;
     }
 }

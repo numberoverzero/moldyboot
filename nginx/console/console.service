@@ -1,8 +1,0 @@
-[Unit]
-Description=uWSGI instance to serve console
-
-[Service]
-ExecStart=/services/console/serve.sh
-
-[Install]
-WantedBy=multi-user.target

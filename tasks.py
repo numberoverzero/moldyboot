@@ -1,8 +1,10 @@
 import json
 import pathlib
 import contextlib
+import tarfile
 import tempfile
 import configparser
+import console
 import os
 import sys
 
@@ -112,22 +114,38 @@ def deploy_console():
     print("Deploying Console")
     print("-" * 80)
 
+    console_root = build_console()
+    archive_path = compress_console(console_root, os.path.join(HERE, "dist"))
+
     dst = "/services/console/"
     copy_files(
-        ("dist/" + WHL_NAME, dst + WHL_NAME),
-        ("nginx/console/requirements.txt", dst + "requirements.txt"),
-        ("nginx/console/serve.sh", dst + "serve.sh"),
-        ("nginx/console/server.py", dst + "server.py"),
-        ("nginx/console/uwsgi.ini", dst + "uwsgi.ini"),
-        ("nginx/console/console.moldyboot.com", dst + "console.moldyboot.com")
+        (os.path.join(HERE, "nginx/console/console.moldyboot.com"), dst + "console.moldyboot.com"),
+        (archive_path, dst + "console.tar.gz")
     )
 
-    in_venv = "source /.venvs/console/bin/activate && "
     remote_commands(
-        in_venv + "pip install -r/services/console/requirements.txt",
-        in_venv + "pip install --upgrade " + dst + WHL_NAME,
-        "sudo systemctl restart console",
+        ("mkdir -p " + dst + "static"),
+        ("tar xf {} -C {}".format(dst + "console.tar.gz", dst + "static"))
     )
+
+
+def build_console():
+    """Generate all console files and return the root directory they are in"""
+    static_dir = os.path.join(HERE, "build", "console")
+    console.ensure_path_to(static_dir, clean=True)
+    os.chdir(static_dir)
+    console.render_to_directory(
+        dst_root=static_dir,
+        ctx=console.production_context.snapshot,
+        dry_run=False, overwrite=True)
+    return static_dir
+
+
+def compress_console(console_root, dst):
+    archive_path = str(pathlib.Path(dst) / "console.prod.tar.gz")
+    with tarfile.open(archive_path, "w:gz") as tar:
+        tar.add(console_root, arcname=".")
+    return archive_path
 
 
 def copy_files(*files, hostname=API_HOST_IP, username=API_DEPLOY_USER):
