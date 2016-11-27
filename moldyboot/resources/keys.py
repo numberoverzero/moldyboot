@@ -1,8 +1,8 @@
 import falcon
 
-from ...models import User, Key
-from ...controllers import InvalidParameter, KeyManager, NotSaved
-from ..meta import tag
+from ..models import User, Key
+from ..controllers import InvalidParameter, KeyManager, NotSaved
+from .meta import tag
 
 
 def key_id(user: User, key: Key):

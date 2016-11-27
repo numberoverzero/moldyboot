@@ -1,12 +1,12 @@
-import falcon
-import pytest
 import uuid
 
-from tests.helpers import request, response
+import falcon
+import pytest
 
-from moldyboot.models import User
 from moldyboot.controllers import InvalidParameter, NotFound, NotSaved
-from moldyboot.resources.api.verifications import Verifications
+from moldyboot.models import User
+from moldyboot.resources.verifications import Verifications
+from tests.helpers import request, response
 
 
 def test_on_get_invalid_user_id(mock_user_manager):

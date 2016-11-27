@@ -1,13 +1,12 @@
+import uuid
+
 import falcon
 import pytest
-import uuid
 
 from moldyboot.controllers import AlreadyExists
 from moldyboot.models import User
-from moldyboot.resources.api.signup import Signup
+from moldyboot.resources.signup import Signup
 from moldyboot.security import passwords
-
-
 from tests.helpers import request, response
 
 

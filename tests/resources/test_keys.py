@@ -1,15 +1,14 @@
+import uuid
+
 import arrow
 import falcon
 import pytest
-import uuid
-
 from cryptography.hazmat.primitives import serialization
 
-from tests.helpers import request, response
-
-from moldyboot.models import Key, User
 from moldyboot.controllers import InvalidParameter, NotSaved
-from moldyboot.resources.api.keys import Keys
+from moldyboot.models import Key, User
+from moldyboot.resources.keys import Keys
+from tests.helpers import request, response
 
 
 def basic_auth_request(user, **kwargs):

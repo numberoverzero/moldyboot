@@ -5,7 +5,7 @@ import texas
 from jinja2 import Environment, FileSystemLoader
 
 
-# ====================================================================================================== static config
+# ====================================================================================================== render config
 
 
 jinja_options = {
@@ -29,20 +29,20 @@ loader = FileSystemLoader([
 env = Environment(loader=loader, **jinja_options)
 
 
-# ====================================================================================================== static config
+# ====================================================================================================== render config
 
 # ========================================================================================================== rendering
 
 
-def ensure_path_to(dst, clean=False):
+def ensure_path_to(dst: pathlib.Path, clean=False):
     if clean:
         try:
-            os.rmdir(dst)
+            os.rmdir(str(dst))
         except OSError:
             # folder doesn't exist
             pass
     try:
-        dst.parent.mkdir(parents=True)
+        os.makedirs(str(dst), exist_ok=True)
     except OSError:
         # Parent exists
         pass
@@ -67,12 +67,12 @@ def render_to_directory(dst_root, ctx=None, dry_run=True, overwrite=False):
     dst_root = pathlib.Path(dst_root)
     ctx = extend_context(ctx)
     for src, rendered in iter_rendered(ctx):
-        # Drop .html suffix, collapse html/ prefix
+        # Collapse html/ prefix
         if src.name.endswith(".html"):
             src = pathlib.Path(*src.parts[1:])  # html/foo/name.html -> foo/name.html
         dst = dst_root / src
         if not dry_run:
-            ensure_path_to(dst)
+            ensure_path_to(dst.parent, clean=False)
             mode = "w" if overwrite else "x"  # "x" fails if dst exists
             with dst.open(mode=mode, encoding="utf-8") as dst_file:
                 dst_file.write(rendered)
