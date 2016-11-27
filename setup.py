@@ -37,6 +37,6 @@ if __name__ == "__main__":
         author_email="joe.mcross@gmail.com",
         url="https://github.com/numberoverzero/moldyboot",
         include_package_data=True,
-        packages=find_packages(exclude=("tests", "docs", "examples")),
+        packages=find_packages(exclude=["console", "tests*"]),
         install_requires=requirements,
     )

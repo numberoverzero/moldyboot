@@ -3,7 +3,7 @@ import io
 import json
 import pytest
 
-from ..helpers import request, response
+from tests.helpers import request, response
 
 from unittest.mock import Mock
 

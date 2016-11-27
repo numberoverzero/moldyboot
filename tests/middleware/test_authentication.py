@@ -7,7 +7,7 @@ import uuid
 
 from moldyboot.models import UserName
 
-from ..helpers import request, response, signed_request
+from tests.helpers import request, response, signed_request
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
