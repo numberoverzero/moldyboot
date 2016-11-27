@@ -17,7 +17,6 @@ console.render_to_directory(
     dry_run=False, overwrite=True)
 port = 8020
 handler = http.server.SimpleHTTPRequestHandler
-handler.extensions_map[""] = "text/html"
 httpd = socketserver.TCPServer(("", port), handler)
 print("Serving CONSOLE on {}".format(port))
 httpd.serve_forever()

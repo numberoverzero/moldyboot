@@ -63,7 +63,6 @@ def render_to_directory(dst_root, ctx=None, dry_run=True, overwrite=False):
         # Drop .html suffix, collapse html/ prefix
         if src.name.endswith(".html"):
             src = pathlib.Path(*src.parts[1:])  # html/foo/name.html -> foo/name.html
-            src = src.parent / src.stem  # foo/name.html -> foo/name
         dst = dst_root / src
         if not dry_run:
             ensure_path_to(dst)

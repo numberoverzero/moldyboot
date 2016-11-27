@@ -6,8 +6,13 @@ server {
     access_log /var/log/nginx/console/access.log;
     error_log  /var/log/nginx/console/error.log;
 
+    root /services/console/static;
+    # remove trailing slash
+    rewrite ^/(.*)/$ /$1 permanent;
+    # remove trailing .html
+    rewrite ^/(.*)\.html$ /$1 permanent;
+
     location / {
-        include uwsgi_params;
-        uwsgi_pass unix:/services/console/console.sock;
+        try_files $uri $uri.html =404 last;
     }
 }
