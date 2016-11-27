@@ -26,7 +26,7 @@ import rq
 from moldyboot.middleware import Authentication, TranslateJSON
 from moldyboot.controllers import KeyManager, UserManager
 from moldyboot.models import BaseModel
-from moldyboot.resources.api import Keys, Signup, Verifications
+from moldyboot.resources import Keys, Signup, Verifications
 from moldyboot.tasks import AsyncTasks
 
 ROOT = "/services/api"
