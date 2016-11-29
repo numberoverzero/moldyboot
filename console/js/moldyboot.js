@@ -1,12 +1,6 @@
 "use strict";
 (function(){
-var crypto;
-if (window.crypto) {
-    crypto = window.crypto.subtle || window.crypto.webkitSubtle;
-}
-if (window.msCrypto) {
-    crypto = window.msCrypto.subtle;
-}
+var crypto = (window.crypto || window.msCrypto).subtle;
 
 Object.filter = function(src, predicate) {
     var dst = {}, key;
