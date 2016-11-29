@@ -2,7 +2,7 @@
 {% set title = "Moldyboot Login" %}
 
 {% set css_files = ["normalize.min", "milligram.min"] %}
-
+{% block inline_css %}{% include "css/nanobar.css" %}{% endblock %}
 {% block body %}
 <div class="container">
     <main class="wrapper">
@@ -21,7 +21,7 @@
 </div>
 {% endblock %}
 
-{% set js_files = ["superagent.min", "moldyboot"] %}
+{% set js_files = ["nanobar.min", "superagent.min", "moldyboot"] %}
 {% block inline_js %}
 <script type="application/javascript">
     "use strict";
@@ -44,19 +44,28 @@
     // Submit form against the API, not the console
     el("login-form").addEventListener("submit", function(event) {
         event.preventDefault();
+        var loginProgress = new Nanobar({classname: "progress"});
         $loginButton.setAttribute("disabled", true);
         var username = $username.value,
             password = $password.value;
 
         newKey
-        .then(function (keyBlob) {return window.keys.storage.saveKey(keyBlob, username)})
-        .then(function() { return (new Client(username)).login(password); })
+        .then(function (keyBlob) {
+            loginProgress.go(15);
+            return window.keys.storage.saveKey(keyBlob, username)
+        })
+        .then(function() {
+            loginProgress.go(75);
+            return (new Client(username)).login(password);
+        })
         .then(function () {
+            loginProgress.go(100);
             $loginButton.removeAttribute("disabled");
             $loginStatus.style.display = "none";
             window.location.href = "{{ endpoints.console }}/console";
         })
         .catch(function (event) {
+            loginProgress.go(100);
             $loginButton.removeAttribute("disabled");
             $username.value = "";
             $password.value = "";
