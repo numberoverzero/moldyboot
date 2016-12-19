@@ -1,11 +1,10 @@
 import json
 import pathlib
 import contextlib
-import tarfile
 import tempfile
 import configparser
-import console
 import os
+import subprocess
 import sys
 
 import moldyboot
@@ -51,7 +50,7 @@ def deploy_nginx():
     print("Deploying Nginx")
     print("-" * 80)
     copy_files(
-        ("nginx/nginx.conf", "/etc/nginx/nginx.conf"),
+        ("nginx/conf.nginx", "/etc/nginx/nginx.conf"),
         ("nginx/certs/origin-pull.pem", "/etc/nginx/certs/cloudflare/origin-pull.pem"),
         ("nginx/certs/x3-cross-signed.pem", "/etc/nginx/certs/letsencrypt/x3-cross-signed.pem")
     )
@@ -97,7 +96,7 @@ def deploy_api():
             ("nginx/api/serve.sh", dst + "serve.sh"),
             ("nginx/api/server.py", dst + "server.py"),
             ("nginx/api/uwsgi.ini", dst + "uwsgi.ini"),
-            ("nginx/api/api.moldyboot.com", dst + "api.moldyboot.com")
+            ("nginx/api/api.moldyboot.com.nginx", dst + "api.moldyboot.com")
         )
 
     in_venv = "source /.venvs/api/bin/activate && "
@@ -114,38 +113,19 @@ def deploy_console():
     print("Deploying Console")
     print("-" * 80)
 
-    console_root = build_console()
-    archive_path = compress_console(console_root, os.path.join(HERE, "dist"))
-
+    # console is in an adjacent project, ../moldyboot-console
+    console_root = os.path.join(HERE, "..", "moldyboot-console")
+    subprocess.run(["cd", str(console_root), "&&", "make" "production"])
     dst = "/services/console/"
     copy_files(
-        (os.path.join(HERE, "nginx/console/console.moldyboot.com"), dst + "console.moldyboot.com"),
-        (archive_path, dst + "console.tar.gz")
+        (os.path.join(HERE, "nginx/console/console.moldyboot.com.nginx"), dst + "console.moldyboot.com"),
+        (os.path.join(console_root, "dist", "server.tar.gz"), dst + "console.tar.gz")
     )
 
     remote_commands(
         ("mkdir -p " + dst + "static"),
         ("tar xf {} -C {}".format(dst + "console.tar.gz", dst + "static"))
     )
-
-
-def build_console():
-    """Generate all console files and return the root directory they are in"""
-    static_dir = os.path.join(HERE, "build", "console")
-    console.ensure_path_to(static_dir, clean=True)
-    os.chdir(static_dir)
-    console.render_to_directory(
-        dst_root=static_dir,
-        ctx=console.production_context.snapshot,
-        dry_run=False, overwrite=True)
-    return static_dir
-
-
-def compress_console(console_root, dst):
-    archive_path = str(pathlib.Path(dst) / "console.prod.tar.gz")
-    with tarfile.open(archive_path, "w:gz") as tar:
-        tar.add(console_root, arcname=".")
-    return archive_path
 
 
 def copy_files(*files, hostname=API_HOST_IP, username=API_DEPLOY_USER):
