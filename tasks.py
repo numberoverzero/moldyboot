@@ -28,11 +28,6 @@ def clean(ctx):
 
 
 @task(pre=[clean])
-def build(ctx):
-    ctx.run("python setup.py bdist_wheel")
-
-
-@task(pre=[build])
 def deploy(ctx, nginx=True, ops=True, api=True, console=True):
     if nginx:
         deploy_nginx()
@@ -80,6 +75,8 @@ def deploy_api():
     print("Deploying API")
     print("-" * 80)
 
+    ctx.run("python setup.py bdist_wheel")
+
     dst = "/services/api/"
     with credentials_file(PROFILE_NAME) as file:
         copy_files(
@@ -115,10 +112,11 @@ def deploy_console():
 
     # console is in an adjacent project, ../moldyboot-console
     console_root = os.path.join(HERE, "..", "moldyboot-console")
-    subprocess.run(["cd", str(console_root), "&&", "make" "production"])
+    os.chdir(console_root)
+    subprocess.run(["make", "production"])
     dst = "/services/console/"
     copy_files(
-        (os.path.join(HERE, "nginx/console/console.moldyboot.com.nginx"), dst + "console.moldyboot.com"),
+        (os.path.join(console_root, "src/console.moldyboot.com.nginx"), dst + "console.moldyboot.com"),
         (os.path.join(console_root, "dist", "server.tar.gz"), dst + "console.tar.gz")
     )
 
