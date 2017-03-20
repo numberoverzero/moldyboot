@@ -19,7 +19,7 @@ import moldyboot.tasks
 def generate_key():
     """Returns a function for generating keys"""
     return lambda bits=1024: rsa.generate_private_key(
-        public_exponent=66537,
+        public_exponent=65537,
         key_size=bits,
         backend=default_backend()
     )

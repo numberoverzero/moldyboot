@@ -34,7 +34,7 @@ class Client:
 
     def refresh_key(self):
         self.key = rsa.generate_private_key(
-            public_exponent=66537,
+            public_exponent=65537,
             key_size=2048,
             backend=default_backend()
         )
