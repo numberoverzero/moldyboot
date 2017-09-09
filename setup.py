@@ -10,7 +10,6 @@ def get_version():
                 return eval(line.split("=")[-1])
 
 requirements = [
-    "arrow==0.7.0",
     "bcrypt==3.1.1",
     "bloop==1.0.0",
     "boto3==1.4.1",
@@ -22,6 +21,7 @@ requirements = [
     "httpie==0.9.3",
     "humanize==0.5.1",
     "jinja2==2.8",
+    "pendulum==1.1.0",
     "pystache==0.5.4",
     "rq==0.6.0",
     "texas==0.5.2",

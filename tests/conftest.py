@@ -1,10 +1,11 @@
-import bloop
-import pytest
+import uuid
+from unittest.mock import Mock, patch
 
+import bloop
+import pendulum
+import pytest
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
-
-from unittest.mock import Mock
 
 import moldyboot.controllers.key
 import moldyboot.controllers.user
@@ -30,9 +31,23 @@ def rsa_priv(generate_key):
     return generate_key()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def rsa_pub(rsa_priv):
     return rsa_priv.public_key()
+
+
+@pytest.fixture()
+def fixed_uuid():
+    some_uuid = uuid.uuid4()
+    with patch.object(uuid, "uuid4", return_value=some_uuid):
+        yield some_uuid
+
+
+@pytest.fixture(scope="session")
+def fixed_now():
+    now = pendulum.now()
+    pendulum.set_test_now(now)
+    return now
 
 
 @pytest.fixture

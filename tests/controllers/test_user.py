@@ -1,13 +1,17 @@
 import uuid
 
-import arrow
 import bcrypt
 import bloop
 import pytest
-from roughly import has_type, near
 
-from moldyboot.controllers import AlreadyExists, InvalidParameter, NotFound, NotSaved
+from moldyboot.controllers import (
+    AlreadyExists,
+    InvalidParameter,
+    NotFound,
+    NotSaved,
+)
 from moldyboot.models import User, UserName
+
 
 valid_username = "abc"
 valid_email = "a@b"
@@ -44,17 +48,17 @@ def test_new_invalid_email(user_manager):
     user_manager.engine.save.assert_not_called()
 
 
-def test_new_username_exists(user_manager):
+def test_new_username_exists(user_manager, fixed_now):
     user_manager.engine.save.side_effect = bloop.ConstraintViolation("save", object())
 
     with pytest.raises(AlreadyExists):
         user_manager.new(valid_username, valid_email, valid_password_hash)
-    expected_username = UserName(username=valid_username, created=near(arrow.now(), seconds=2))
+    expected_username = UserName(username=valid_username, created=fixed_now)
     expected_condition = UserName.username.is_(None)
     user_manager.engine.save.assert_called_once_with(expected_username, condition=expected_condition)
 
 
-def test_new_user_associate_fails(user_manager):
+def test_new_user_associate_fails(user_manager, fixed_uuid):
     user_manager.engine.save.side_effect = [None, None, bloop.ConstraintViolation("save", None)]
 
     with pytest.raises(NotSaved):
@@ -63,23 +67,23 @@ def test_new_user_associate_fails(user_manager):
     assert user_manager.engine.save.call_count == 3
     expected_user = User(
         password_hash=valid_password_hash, email=valid_email,
-        verification_code=has_type(uuid.UUID), user_id=has_type(uuid.UUID))
+        verification_code=fixed_uuid, user_id=fixed_uuid)
     user_manager.engine.save.assert_any_call(expected_user, condition=User.user_id.is_(None))
 
 
-def test_new_user_success(user_manager):
+def test_new_user_success(user_manager, fixed_now, fixed_uuid):
     """after UserName is created, a new user is created with a random user_id."""
     returned_user = user_manager.new(valid_username, valid_email, valid_password_hash)
 
     expected_username = UserName(
         username=valid_username,
-        created=near(arrow.now(), seconds=2),
-        user_id=has_type(uuid.UUID))
+        created=fixed_now,
+        user_id=fixed_uuid)
     expected_user = User(
         password_hash=valid_password_hash,
         email=valid_email,
-        verification_code=has_type(uuid.UUID),
-        user_id=has_type(uuid.UUID))
+        verification_code=fixed_uuid,
+        user_id=fixed_uuid)
     # username saved without user_id
     user_manager.engine.save.assert_any_call(expected_username, condition=UserName.username.is_(None))
     # intermediate call saves the User

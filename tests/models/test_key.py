@@ -1,13 +1,14 @@
-import arrow
 import base64
 import uuid
 
-from moldyboot.models.key import Key, PublicKeyType
+import pendulum
 from tests.helpers import as_der
+
+from moldyboot.models.key import Key, PublicKeyType
 
 
 def test_eq(generate_key):
-    key = Key(user_id=uuid.uuid4(), key_id=uuid.uuid4(), public=generate_key().public_key(), until=arrow.now())
+    key = Key(user_id=uuid.uuid4(), key_id=uuid.uuid4(), public=generate_key().public_key(), until=pendulum.now())
     other = Key(user_id=key.user_id, key_id=key.key_id, public=key.public, until=key.until)
 
     assert key != object()
@@ -34,12 +35,12 @@ def test_key_type(rsa_pub):
 
 
 def test_is_expired():
-    now = arrow.now()
+    now = pendulum.now()
 
     # key was valid until 5 seconds in the past
-    key = Key(until=now.replace(seconds=-5))
+    key = Key(until=now.subtract(seconds=5))
     assert key.is_expired
 
     # key is valid until 5 seconds from now
-    key = Key(until=now.replace(seconds=5))
+    key = Key(until=now.add(seconds=5))
     assert not key.is_expired

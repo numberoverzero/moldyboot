@@ -1,5 +1,6 @@
 import functools
 
+
 # While a whitelist isn't strictly required, it takes care of typos
 # without requiring an additional import, like an Enum would.
 _allowed_tags = {

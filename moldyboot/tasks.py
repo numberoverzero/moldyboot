@@ -1,9 +1,17 @@
-import boto3.session
-import rq
 import urllib.parse
 
-from .controllers import InvalidParameter, KeyManager, NotFound, NotSaved, UserManager
+import boto3.session
+import rq
+
 from . import templates
+from .controllers import (
+    InvalidParameter,
+    KeyManager,
+    NotFound,
+    NotSaved,
+    UserManager,
+)
+
 
 __all__ = ["AsyncTasks"]
 

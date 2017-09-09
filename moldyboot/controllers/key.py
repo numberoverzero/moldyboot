@@ -1,11 +1,12 @@
-import arrow
-import bloop
 import uuid
-from typing import Union, Sequence, Optional
+from typing import Optional, Sequence, Union
 
-from .common import persist_unique, NotFound, NotSaved
-from .validation import validate
+import bloop
+import pendulum
+
 from ..models import Key
+from .common import NotFound, NotSaved, persist_unique
+from .validation import validate
 
 
 class KeyManager:
@@ -17,7 +18,7 @@ class KeyManager:
         user_id = validate("user_id", user_id)
         public = validate("public_key", public)
         # 2) Store key
-        key = Key(user_id=user_id, public=public, until=arrow.now().replace(hours=1))
+        key = Key(user_id=user_id, public=public, until=pendulum.now().add(hours=1))
         persist_unique(key, self.engine, "key_id", uuid.uuid4)
         return key
 
@@ -58,7 +59,7 @@ class KeyManager:
         # TODO should push to an async task queue, not blocking
         # TODO offset should be loaded from config
         # TODO handle bloop.ConstraintViolation
-        now = arrow.now()
-        key.until = now.replace(hours=1)
+        now = pendulum.now()
+        key.until = now.add(hours=1)
         not_expired = Key.until >= now
         self.engine.save(key, condition=not_expired, atomic=True)

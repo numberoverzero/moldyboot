@@ -1,13 +1,12 @@
+import uuid
 from typing import Union
 
-import arrow
 import bloop
-import uuid
+import pendulum
 
-
+from ..models import User, UserName
 from .common import AlreadyExists, NotFound, NotSaved, persist_unique
 from .validation import validate
-from ..models import User, UserName
 
 
 class UserManager:
@@ -20,7 +19,7 @@ class UserManager:
         email = validate("email", email)
         password_hash = validate("password_hash", password_hash)
         # 2) Try to reserve username
-        username = UserName(username=username, created=arrow.now())
+        username = UserName(username=username, created=pendulum.now())
         try:
             self.engine.save(username, condition=UserName.username.is_(None))
         except bloop.ConstraintViolation:

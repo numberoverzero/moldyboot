@@ -1,14 +1,18 @@
-import arrow
-import arrow.parser
 import base64
-import uritools
+from typing import Dict, MutableSequence, Optional, Sequence
 
+import pendulum
+import pendulum.parsing
+import uritools
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
-from typing import Sequence, Dict, Optional, MutableSequence
+from cryptography.hazmat.primitives.asymmetric.rsa import (
+    RSAPrivateKey,
+    RSAPublicKey,
+)
+
 
 __all__ = ["sign", "verify"]
 
@@ -68,7 +72,7 @@ def verify(*,
     Throws BadSignature with detailed info if any part of the signature
     verification fails.
     """
-    now = arrow.now()
+    now = pendulum.now().in_timezone("utc")
     method = method.lower()
     headers_to_sign = (headers_to_sign or [])[:]
 
@@ -108,7 +112,7 @@ def _ensure_minimum_headers(headers_to_sign: MutableSequence[str]):
 
 
 def _populate_missing_headers(headers: Dict[str, str], body: Optional[str]=None):
-    headers.setdefault("x-date", arrow.now().to("utc").isoformat())
+    headers.setdefault("x-date", pendulum.now().in_timezone("utc").isoformat())
     headers.setdefault("content-length", str(0 if not body else len(body)))
     headers.setdefault("x-content-sha256", _compute_body_hash(body))
 
@@ -169,14 +173,14 @@ def _insert_authorization_header(headers: Dict[str, str], headers_to_sign: Seque
     headers["authorization"] = auth_format.format(" ".join(headers_to_sign), id, signature)
 
 
-def _verify_date(headers: Dict[str, str], now: arrow.Arrow):
+def _verify_date(headers: Dict[str, str], now: pendulum.Pendulum):
     iso8601_date = headers["x-date"]
     try:
-        date = arrow.get(iso8601_date)
-    except arrow.parser.ParserError:
+        date = pendulum.parse(iso8601_date)
+    except pendulum.parsing.exceptions.ParserError:
         raise BadSignature("x-date must be ISO8601 UTC")
     # TODO offset should be loaded from config
-    within_range = now.replace(minutes=-5) <= date <= now.replace(minutes=5)
+    within_range = now.subtract(minutes=5) <= date <= now.add(minutes=5)
     if not within_range:
         raise BadSignature("x-date not within 5 minutes of current time")
 

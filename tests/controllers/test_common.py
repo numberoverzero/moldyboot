@@ -1,8 +1,13 @@
 import pytest
+from bloop import (
+    BaseModel,
+    Column,
+    ConstraintViolation,
+    GlobalSecondaryIndex,
+    Integer,
+)
 
-from bloop import Column, Integer, ConstraintViolation, GlobalSecondaryIndex, BaseModel
-
-from moldyboot.controllers import NotSaved, persist_unique, if_not_exist
+from moldyboot.controllers import NotSaved, if_not_exist, persist_unique
 
 
 @pytest.fixture

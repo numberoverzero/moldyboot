@@ -1,5 +1,6 @@
-import falcon
 import json
+
+import falcon
 
 
 class TranslateJSON:

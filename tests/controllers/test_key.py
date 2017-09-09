@@ -1,14 +1,11 @@
-import arrow
-import bloop
-import pytest
 import uuid
 
-from roughly import has_type, near
+import bloop
+import pytest
+from tests.helpers import as_der
 
 from moldyboot.controllers import InvalidParameter, NotFound, NotSaved
 from moldyboot.models import Key
-
-from tests.helpers import as_der
 
 
 def test_new_invalid_user_id(rsa_pub, key_manager):
@@ -29,66 +26,66 @@ def test_new_invalid_public_key(key_manager):
     key_manager.engine.assert_not_called()
 
 
-def test_new_unique_fails(rsa_pub, key_manager):
-    user_id = uuid.uuid4()
+def test_new_unique_fails(rsa_pub, key_manager, fixed_now, fixed_uuid):
     public = as_der(rsa_pub)
 
-    roughly_one_hour = near(arrow.now().replace(hours=1), seconds=5)
-    expected_key = Key(user_id=user_id, public=rsa_pub, until=roughly_one_hour, key_id=has_type(uuid.UUID))
+    expected_key = Key(user_id=fixed_uuid, public=rsa_pub, until=fixed_now.add(hours=1))
     expected_condition = Key.user_id.is_(None) & Key.key_id.is_(None)
     key_manager.engine.save.side_effect = bloop.ConstraintViolation("save", expected_key)
 
     with pytest.raises(NotSaved) as excinfo:
-        key_manager.new(user_id, public)
-    assert excinfo.value.obj == expected_key
+        key_manager.new(fixed_uuid, public)
+    # All fields except key_id are the fixed values
+    actual_key = excinfo.value.obj
+    assert actual_key.user_id == expected_key.user_id
+    assert actual_key.until == expected_key.until
+    assert actual_key.public.public_numbers() == expected_key.public.public_numbers()
 
-    key_manager.engine.save.assert_any_call(expected_key, condition=expected_condition)
+    key_manager.engine.save.assert_any_call(actual_key, condition=expected_condition)
 
 
-def test_new_success(rsa_pub, key_manager):
+def test_new_success(rsa_pub, key_manager, fixed_now, fixed_uuid):
     user_id = uuid.uuid4()
     public = as_der(rsa_pub)
 
     key_manager.new(user_id, public)
 
-    roughly_one_hour = near(arrow.now().replace(hours=1), seconds=5)
-    expected_key = Key(user_id=user_id, public=rsa_pub, until=roughly_one_hour, key_id=has_type(uuid.UUID))
+    expected_key = Key(user_id=user_id, public=rsa_pub, until=fixed_now.add(hours=1), key_id=fixed_uuid)
     expected_condition = Key.user_id.is_(None) & Key.key_id.is_(None)
     key_manager.engine.save.assert_called_once_with(expected_key, condition=expected_condition)
 
 
-def test_get_valid(key_manager):
+def test_get_valid(key_manager, fixed_now):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
 
     # Patch engine to return a key with expiry > now
     def load(item, *args, **kwargs):
-        item.until = arrow.now().replace(seconds=5)
+        item.until = fixed_now.add(seconds=5)
     key_manager.engine.load.side_effect = load
 
     key = key_manager.get_key(user_id, key_id)
 
     # Consistent load, followed by atomic save (refresh)
-    # roughly.near lets us use exact matches (assert called) with approximate times
-    expected_condition = Key.until >= near(arrow.now(), seconds=5)
+    expected_condition = Key.until >= fixed_now
     key_manager.engine.load.assert_called_once_with(key, consistent=True)
     key_manager.engine.save.assert_called_once_with(key, atomic=True, condition=expected_condition)
 
 
-def test_get_expired(key_manager):
+def test_get_expired(key_manager, fixed_now):
     user_id = uuid.uuid4()
     key_id = uuid.uuid4()
 
     # Patch engine to return a key with expiry < now
     def load(item, *args, **kwargs):
-        item.until = arrow.now().replace(seconds=-2)
+        item.until = fixed_now.subtract(seconds=2)
     key_manager.engine.load.side_effect = load
 
     with pytest.raises(NotFound):
         key_manager.get_key(user_id, key_id)
 
     # Consistent load, followed by atomic delete (revoke)
-    expired_key = Key(user_id=user_id, key_id=key_id, until=near(arrow.now(), seconds=3))
+    expired_key = Key(user_id=user_id, key_id=key_id, until=fixed_now.subtract(seconds=2), seconds=3)
     key_manager.engine.load.assert_called_once_with(expired_key, consistent=True)
     key_manager.engine.delete.assert_called_once_with(expired_key, atomic=True)
 

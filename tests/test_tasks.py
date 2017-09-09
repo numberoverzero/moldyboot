@@ -1,15 +1,21 @@
-import pytest
-import rq
 import urllib.parse
 import uuid
+from unittest.mock import Mock
+
+import pytest
+import rq
 
 from moldyboot import templates
 from moldyboot.controllers import InvalidParameter, NotFound, NotSaved
 from moldyboot.models import Key, User, UserName
-from moldyboot.tasks import AsyncTasks, RedisContext, Result, _delete_user, _send_verification
+from moldyboot.tasks import (
+    AsyncTasks,
+    RedisContext,
+    Result,
+    _delete_user,
+    _send_verification,
+)
 
-
-from unittest.mock import Mock
 
 api_endpoint = urllib.parse.urlsplit("http://127.0.0.1:8010")
 

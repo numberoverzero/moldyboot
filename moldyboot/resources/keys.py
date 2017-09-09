@@ -1,7 +1,7 @@
 import falcon
 
-from ..models import User, Key
 from ..controllers import InvalidParameter, KeyManager, NotSaved
+from ..models import Key, User
 from .meta import tag
 
 
@@ -20,7 +20,7 @@ class Keys:
 
         req.context["response"] = {
             "key_id": key_id(user, key),
-            "until": key.until.to("utc").isoformat(),
+            "until": key.until.in_timezone("utc").isoformat(),
             "fingerprint": key.compute_fingerprint()
         }
         resp.status = falcon.HTTP_200
@@ -51,6 +51,6 @@ class Keys:
 
         req.context["response"] = {
             "key_id": key_id(user, key),
-            "until": key.until.to("utc").isoformat(),
+            "until": key.until.in_timezone("utc").isoformat(),
         }
         resp.status = falcon.HTTP_200

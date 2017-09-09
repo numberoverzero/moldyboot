@@ -3,13 +3,12 @@ import uuid
 
 import bcrypt
 import pytest
+from cryptography.hazmat.primitives import serialization
+from tests.helpers import as_der
 
 from moldyboot.controllers import InvalidParameter, validate
 from moldyboot.security.jwk import i2b64
 
-from cryptography.hazmat.primitives import serialization
-
-from tests.helpers import as_der
 
 valid_uuids = [
     uuid.uuid1(),

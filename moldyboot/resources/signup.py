@@ -1,9 +1,9 @@
 import falcon
 
-from .meta import tag
-from ..security import passwords
 from ..controllers import AlreadyExists, UserManager
+from ..security import passwords
 from ..tasks import AsyncTasks
+from .meta import tag
 
 
 class Signup:

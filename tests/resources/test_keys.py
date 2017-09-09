@@ -1,14 +1,14 @@
 import uuid
 
-import arrow
 import falcon
+import pendulum
 import pytest
 from cryptography.hazmat.primitives import serialization
+from tests.helpers import request, response
 
 from moldyboot.controllers import InvalidParameter, NotSaved
 from moldyboot.models import Key, User
 from moldyboot.resources.keys import Keys
-from tests.helpers import request, response
 
 
 def basic_auth_request(user, **kwargs):
@@ -25,7 +25,7 @@ def signed_auth_request(key, user, **kwargs):
 
 def test_on_get(mock_key_manager, rsa_pub):
     """Echoes the authenticated public key back at the user"""
-    expiry = arrow.now().to("utc").replace(hours=1)
+    expiry = pendulum.now().in_timezone("utc").add(hours=1)
     key = Key(key_id=uuid.uuid4(), user_id=uuid.uuid4(), public=rsa_pub, until=expiry)
     user = User(user_id=key.user_id)
     req, resp = signed_auth_request(key, user), response()
@@ -115,7 +115,7 @@ def test_on_post(mock_key_manager, rsa_pub):
     ).decode("utf-8")
     req, resp = basic_auth_request(user, body={"public_key": public_key}), response()
 
-    expiry = arrow.now().to("utc").replace(hours=1)
+    expiry = pendulum.now().in_timezone("utc").add(hours=1)
     resource = Keys(mock_key_manager)
     mock_key_manager.new.return_value = Key(user_id=user.user_id, key_id=key_id, until=expiry)
 

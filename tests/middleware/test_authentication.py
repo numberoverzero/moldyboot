@@ -1,24 +1,26 @@
-import arrow
 import base64
-import falcon
-import falcon.testing
-import pytest
 import uuid
-
-from moldyboot.models import UserName
-
-from tests.helpers import request, response, signed_request
-
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
 from unittest.mock import Mock
 
-from moldyboot.middleware.authentication import Authentication, authenticate_password, authenticate_signature
-from moldyboot.models import Key, User
+import falcon
+import falcon.testing
+import pendulum
+import pytest
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from tests.helpers import request, response, signed_request
+
 from moldyboot.controllers import InvalidParameter, NotFound
+from moldyboot.middleware.authentication import (
+    Authentication,
+    authenticate_password,
+    authenticate_signature,
+)
+from moldyboot.models import Key, User, UserName
 from moldyboot.security import passwords
 from moldyboot.security.passwords import hash
 from moldyboot.security.signatures import sign
+
 
 SIGNATURE_MISMATCH_MESSAGE = (
     'Authorization header did not match required pattern '
@@ -45,7 +47,7 @@ def valid_request(rsa_priv):
     path = "/some/path?query=string"
     body = "hello world"
     headers = {
-        "x-date": arrow.now().to("utc").isoformat(),
+        "x-date": pendulum.now().in_timezone("utc").isoformat(),
         "content-length": str(len(body)),
         "x-content-sha256": sha256(body)
     }
@@ -85,7 +87,7 @@ def test_authenticate_signature_invalid_id_format(rsa_priv, mock_key_manager):
     path = "/some/path?query=string"
     body = "hello world"
     headers = {
-        "x-date": arrow.now().to("utc").isoformat(),
+        "x-date": pendulum.now().in_timezone("utc").isoformat(),
         "content-length": 0,
         "x-content-sha256": sha256(body)
     }
@@ -110,7 +112,7 @@ def test_authenticate_signature_invalid_param(rsa_priv, mock_key_manager):
     path = "/some/path?query=string"
     body = "hello world"
     headers = {
-        "x-date": arrow.now().to("utc").isoformat(),
+        "x-date": pendulum.now().in_timezone("utc").isoformat(),
         "content-length": 0,
         "x-content-sha256": sha256(body)
     }

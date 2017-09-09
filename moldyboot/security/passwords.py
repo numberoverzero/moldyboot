@@ -1,5 +1,6 @@
-import bcrypt
 from typing import Union
+
+import bcrypt
 
 
 DEFAULT_SALT_ROUNDS = 12

@@ -1,12 +1,11 @@
 import base64
 
-import arrow
+import pendulum
+from bloop import UUID, Binary, Column
+from bloop.ext.pendulum import DateTime
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-from cryptography.hazmat.primitives import serialization
-from bloop import Binary, Column, UUID
-from bloop.ext.arrow import DateTime
 
 from .common import BaseModel
 
@@ -48,7 +47,7 @@ class Key(BaseModel):
 
     @property
     def is_expired(self):
-        return arrow.now() > self.until
+        return pendulum.now() > self.until
 
     def compute_fingerprint(self) -> str:
         """Base64 of the SHA256 of public key in PEM format"""

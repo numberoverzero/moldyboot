@@ -1,5 +1,6 @@
-from bloop import Binary, Boolean, Column, GlobalSecondaryIndex, String, UUID
-from bloop.ext.arrow import DateTime
+from bloop import UUID, Binary, Boolean, Column, GlobalSecondaryIndex, String
+from bloop.ext.pendulum import DateTime
+
 from .common import BaseModel
 
 

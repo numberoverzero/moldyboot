@@ -1,15 +1,17 @@
-from typing import Optional, Dict, List, Union
+import io
+import json
+import sys
+from typing import Dict, List, Optional, Union
 
 import falcon
 import falcon.testing
 import falcon.testing.resource
-import io
-import json
-import sys
 import uritools
-
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
+from cryptography.hazmat.primitives.asymmetric.rsa import (
+    RSAPrivateKey,
+    RSAPublicKey,
+)
 
 from moldyboot.middleware import BodyWrapper
 from moldyboot.security import signatures

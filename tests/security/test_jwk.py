@@ -1,11 +1,11 @@
+from cryptography.hazmat.backends import default_backend
+
 from moldyboot.security.jwk import (
     dump_private_key,
     dump_public_key,
     load_private_key,
     load_public_key,
 )
-
-from cryptography.hazmat.backends import default_backend
 
 
 def test_public_key(rsa_pub):

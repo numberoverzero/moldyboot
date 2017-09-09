@@ -1,14 +1,14 @@
+import base64
+import re
 from typing import Optional
 
-import arrow
-import base64
+import pendulum
 import pytest
-import re
-
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 
 from moldyboot.security.signatures import BadSignature, sign, verify
+
 
 PATH = "/some/path/?query=string&another=value"
 SIGNATURE_PATTERN = re.compile(
@@ -68,9 +68,9 @@ def test_sign_populates_missing_headers(rsa_priv):
     assert headers["x-content-sha256"] == sha256(body)
     assert headers["content-length"] == "0"
 
-    now = arrow.now()
-    x_date = arrow.get(headers["x-date"])
-    assert now.replace(seconds=-10) <= x_date <= now.replace(seconds=10)
+    now = pendulum.now()
+    x_date = pendulum.parse(headers["x-date"])
+    assert now.subtract(seconds=10) <= x_date <= now.add(seconds=10)
 
     assert "authorization" in headers
 
@@ -127,7 +127,7 @@ def test_verify_fails_missing_signed_header(rsa_pub):
     headers = {
         "content-length": "0",
         "x-content-sha256": sha256(""),
-        "x-date": arrow.now().to("utc").isoformat()}
+        "x-date": pendulum.now().in_timezone("utc").isoformat()}
     body = None
     headers_to_sign = []
     # Pretend the generated signature forgot to sign the last header
@@ -152,7 +152,7 @@ def test_verify_fails_expired_date(rsa_pub):
     headers = {
         "content-length": "0",
         "x-content-sha256": sha256(""),
-        "x-date": arrow.now().replace(hours=1).to("utc").isoformat()}
+        "x-date": pendulum.now().add(hours=1).in_timezone("utc").isoformat()}
     body = None
     headers_to_sign = []
     signature = sha256("")
@@ -198,7 +198,7 @@ def test_verify_fails_wrong_body_sha(rsa_pub):
     headers = {
         "content-length": "9",
         "x-content-sha256": sha256(""),
-        "x-date": arrow.now().to("utc").isoformat()}
+        "x-date": pendulum.now().in_timezone("utc").isoformat()}
     body = "not empty"
     headers_to_sign = []
     signature = sha256("")
@@ -224,7 +224,7 @@ def test_verify_fails_wrong_body_length(rsa_pub):
     headers = {
         "content-length": "2",
         "x-content-sha256": sha256("not empty"),
-        "x-date": arrow.now().to("utc").isoformat()}
+        "x-date": pendulum.now().in_timezone("utc").isoformat()}
     body = "not empty"
     headers_to_sign = []
     signature = sha256("")
@@ -250,7 +250,7 @@ def test_verify_fails_invalid_body_length(rsa_pub):
     headers = {
         "content-length": "not an int",
         "x-content-sha256": sha256("not empty"),
-        "x-date": arrow.now().to("utc").isoformat()}
+        "x-date": pendulum.now().in_timezone("utc").isoformat()}
     body = "not empty"
     headers_to_sign = []
     signature = sha256("")
@@ -273,7 +273,7 @@ def test_verify_fails_bad_signature(rsa_pub):
     headers = {
         "content-length": "0",
         "x-content-sha256": sha256(""),
-        "x-date": arrow.now().to("utc").isoformat()}
+        "x-date": pendulum.now().in_timezone("utc").isoformat()}
     body = None
     headers_to_sign = []
     signature = sha256("")
@@ -297,7 +297,7 @@ def test_sign_and_verify(rsa_priv, rsa_pub):
     headers = {
         "content-length": "0",
         "x-content-sha256": sha256(""),
-        "x-date": arrow.now().to("utc").isoformat()}
+        "x-date": pendulum.now().in_timezone("utc").isoformat()}
     body = None
     headers_to_sign = []
     key_id = "user:key-id"
