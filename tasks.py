@@ -31,10 +31,10 @@ def clean(ctx):
 def deploy(ctx, nginx=True, ops=True, api=True, console=True):
     if nginx:
         deploy_nginx()
+    if api:
+        deploy_api(ctx)
     if ops:
         deploy_ops()
-    if api:
-        deploy_api()
     if console:
         deploy_console()
     remote_commands("sudo service nginx restart")
@@ -70,7 +70,7 @@ def deploy_ops():
     )
 
 
-def deploy_api():
+def deploy_api(ctx):
     print("=" * 80)
     print("Deploying API")
     print("-" * 80)

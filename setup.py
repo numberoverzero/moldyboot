@@ -11,8 +11,8 @@ def get_version():
 
 requirements = [
     "bcrypt==3.1.1",
-    "bloop==1.0.0",
-    "boto3==1.4.1",
+    "bloop==1.2.0",
+    "boto3==1.4.4",
     "click==6.6",
     "cryptography==1.5.2",
     "falcon==1.0.0",
