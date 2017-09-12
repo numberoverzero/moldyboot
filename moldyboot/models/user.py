@@ -6,10 +6,7 @@ from .common import BaseModel
 
 class UserName(BaseModel):
     class Meta:
-        # TODO should be loaded from config
-        table_name = "mbUserNames"
-        write_units = 1
-        read_units = 1
+        table_name = "users.names"
     username = Column(String, hash_key=True, name="n")
     user_id = Column(UUID, name="u")
     created = Column(DateTime, name="c")
@@ -20,10 +17,7 @@ class UserName(BaseModel):
 
 class User(BaseModel):
     class Meta:
-        # TODO should be loaded from config
-        table_name = "mbUsers"
-        write_units = 1
-        read_units = 1
+        table_name = "users"
     user_id = Column(UUID, hash_key=True, name="u")
     password_hash = Column(Binary, name="p")
     email = Column(String, name="e")

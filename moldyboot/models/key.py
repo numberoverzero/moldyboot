@@ -35,11 +35,7 @@ class PublicKeyType(Binary):
 
 class Key(BaseModel):
     class Meta:
-        # TODO should be loaded from config
-        table_name = "mbKeys"
-        write_units = 1
-        read_units = 1
-
+        table_name = "users.keys"
     user_id = Column(UUID, hash_key=True, name='u')
     key_id = Column(UUID, range_key=True, name='k')
     public = Column(PublicKeyType, name='p')
