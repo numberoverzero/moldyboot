@@ -36,10 +36,10 @@ class PublicKeyType(Binary):
 class Key(BaseModel):
     class Meta:
         table_name = "users.keys"
-    user_id = Column(UUID, hash_key=True, name='u')
-    key_id = Column(UUID, range_key=True, name='k')
-    public = Column(PublicKeyType, name='p')
-    until = Column(DateTime, name='e')
+    user_id = Column(UUID, hash_key=True, dynamo_name='u')
+    key_id = Column(UUID, range_key=True, dynamo_name='k')
+    public = Column(PublicKeyType, dynamo_name='p')
+    until = Column(DateTime, dynamo_name='e')
 
     @property
     def is_expired(self):

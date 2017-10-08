@@ -9,8 +9,8 @@ from .common import BaseModel, StringEnum, S3Location
 class UserGame(BaseModel):
     class Meta:
         table_name = "users.games"
-    user_id = Column(UUID, hash_key=True, name="u")
-    game_id = Column(UUID, range_key=True, name="g")
+    user_id = Column(UUID, hash_key=True, dynamo_name="u")
+    game_id = Column(UUID, range_key=True, dynamo_name="g")
 
 
 class GameStatus(enum.Enum):
@@ -31,7 +31,7 @@ GameMetadata = Map(**{
 class Game(BaseModel):
     class Meta:
         table_name = "games"
-    game_id = Column(UUID, hash_key=True, name="g")
+    game_id = Column(UUID, hash_key=True, dynamo_name="g")
     metadata = Column(GameMetadata)
     version = Column(Integer)
 

@@ -18,7 +18,7 @@ class BaseModel(bloop.BaseModel):
         if not isinstance(other, self.__class__):
             return False
         for column in self.Meta.columns:
-            name = column.model_name
+            name = column.name
             if getattr(self, name, None) != getattr(other, name, None):
                 return False
         return True
