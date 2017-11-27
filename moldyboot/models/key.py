@@ -2,7 +2,7 @@ import base64
 
 import pendulum
 from bloop import UUID, Binary, Column
-from bloop.ext.pendulum import DateTime
+from bloop.ext.pendulum import Timestamp
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -36,10 +36,13 @@ class PublicKeyType(Binary):
 class Key(BaseModel):
     class Meta:
         table_name = "users.keys"
+        ttl = {
+            "column": "until"
+        }
     user_id = Column(UUID, hash_key=True, dynamo_name='u')
     key_id = Column(UUID, range_key=True, dynamo_name='k')
     public = Column(PublicKeyType, dynamo_name='p')
-    until = Column(DateTime, dynamo_name='e')
+    until = Column(Timestamp, dynamo_name='e')
 
     @property
     def is_expired(self):
