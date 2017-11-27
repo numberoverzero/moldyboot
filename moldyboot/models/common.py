@@ -1,17 +1,10 @@
 import bloop
 
-
 __all__ = ["BaseModel"]
 
 
-@bloop.before_create_table.connect
-def apply_table_prefix(_, model, **__):
-    prefix = "mb."
-    model.Meta.table_name = prefix + model.Meta.table_name
-
-
 class BaseModel(bloop.BaseModel):
-    class Meta:
+    class Meta(bloop.models.IMeta):  # IMeta provides autocomplete
         abstract = True
 
     def __eq__(self, other):

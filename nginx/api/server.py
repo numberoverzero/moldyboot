@@ -23,6 +23,7 @@ import json
 import redis
 import rq
 
+from moldyboot import config
 from moldyboot.middleware import Authentication, TranslateJSON
 from moldyboot.controllers import KeyManager, UserManager
 from moldyboot.models import BaseModel
@@ -39,7 +40,8 @@ with open(ROOT + "/.credentials/aws") as f:
 session = boto3.session.Session(**credentials)
 engine = bloop.Engine(
     dynamodb=session.client("dynamodb"),
-    dynamodbstreams=session.client("dynamodbstreams")
+    dynamodbstreams=session.client("dynamodbstreams"),
+    table_name_template=config.table_name_template
 )
 engine.bind(BaseModel)
 

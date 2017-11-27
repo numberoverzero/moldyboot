@@ -4,6 +4,7 @@ import redis
 import rq
 import urllib.parse
 
+import moldyboot.config
 from moldyboot.controllers import KeyManager, UserManager
 from moldyboot.models import BaseModel
 from moldyboot.tasks import AsyncTasks
@@ -18,7 +19,8 @@ queue = rq.Queue(connection=redis_connection)
 session = boto3.session.Session(profile_name="moldyboot-crossj@ubuntu-16")
 engine = bloop.Engine(
     dynamodb=session.client("dynamodb"),
-    dynamodbstreams=session.client("dynamodbstreams")
+    dynamodbstreams=session.client("dynamodbstreams"),
+    table_name_template=moldyboot.config.table_name_template
 )
 engine.bind(BaseModel)
 
