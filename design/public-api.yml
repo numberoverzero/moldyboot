@@ -1,0 +1,47 @@
+openapi: "3.0.0"
+info:
+  title: "Public API"
+  version: "0.0.0"
+servers:
+- url: "https://api.moldyboot.com/{{GAME_NAME}}/{version}"
+  variables:
+    version:
+      default: "v1"
+paths:
+  /games:
+    get:
+      operationId: ListGames
+      summary: List all ongoing and complete games
+  /games/{gameId}:
+    get:
+      operationId: GetGame
+      summary: Return the metadata for an ongoing or complete game
+  /games/{gameId}/actions:
+    get:
+      operationId: ListGameActions
+      summary: List all game actions for a given game
+    post:
+      operationId: PerformGameAction
+      summary: Perform a game action if it is valid
+  /games/{gameId}/actions/{actionId}:
+    get:
+      operationId: GetGameAction
+      summary: Return detailed information about the given game action
+  /matchmaking:
+    post:
+      operationId: StartMatchmakingSearch
+      summary: Start searching for a match with the given criteria
+    get:
+      operationId: ListMatchmakingSearches
+      summary: List all ongoing matchmaking searches
+  /matchmaking/{matchmakingId}:
+    get:
+      operationId: GetMatchmakingSearch
+      summary: Returns the status of an ongoing matchmaking search
+    delete:
+      operationId: CancelMatchmakingSearch
+      summary: Cancels an in-progress matchmaking search
+
+
+components:
+  BLAH
