@@ -14,17 +14,14 @@ requirements = [
     "bloop>=2.0",
     "boto3>=1.4",
     "click==6.6",
-    "cryptography==1.5.2",
+    "cryptography==42.0.8",
     "falcon==1.0.0",
     "falcon-cors==1.0.1",
-    "hiredis==0.2.0",
-    "httpie==0.9.3",
+    "httpie==3.2.2",
     "humanize==0.5.1",
-    "jinja2==2.8",
     "pendulum==1.1.0",
-    "pystache==0.5.4",
+    "pystache==0.6.5",
     "rq==0.6.0",
-    "texas==0.5.2",
     "uritools==1.0.2"
 ]
 
