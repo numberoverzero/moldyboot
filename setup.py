@@ -17,8 +17,6 @@ requirements = [
     "cryptography==42.0.8",
     "falcon==1.0.0",
     "falcon-cors==1.0.1",
-    "httpie==3.2.2",
-    "humanize==0.5.1",
     "pendulum==1.1.0",
     "pystache==0.6.5",
     "rq==0.6.0",

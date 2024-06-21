@@ -8,9 +8,8 @@ falcon==1.0.0
 falcon-cors==1.0.1
 flake8==3.2.0
 httpie==3.2.2
-humanize==0.5.1
 invoke==0.13.0
-paramiko==2.0.2
+paramiko==3.4.0
 pendulum==1.1.0
 pystache==0.6.5
 pytest==3.2.2
